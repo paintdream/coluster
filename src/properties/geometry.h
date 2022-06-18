@@ -9,17 +9,17 @@
 namespace coluster {
 	struct transform_t {
 		vec3 position;
-		float scale; // uniform scaling
+		scalar scale; // uniform scaling
 		vec4 rotation; // represent as quaternion
 	};
 	
 	struct motion_t {
 		vec3 velocity;
-		float angular_velocity;
+		scalar angular_velocity;
 	};
 
 	struct derivative_motion_t {
 		vec3 acceleration;
-		float angular_acceleration;
+		scalar angular_acceleration;
 	};
 }

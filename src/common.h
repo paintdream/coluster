@@ -20,7 +20,12 @@ namespace coluster {
 	template <typename... args_t>
 	using properties_t = grid::grid_system_t<id_t, allocator_t, allocator_block_size, args_t...>;
 	using coroutine_t = grid::grid_coroutine_t;
+	using coroutine_handle = grid::grid_coroutine_handle;
 
+	template <typename element_t>
+	using queue_list_t = grid::grid_queue_list_t<element_t>;
+
+	using scalar = float;
 	using vec2 = glm::vec2;
 	using vec3 = glm::vec3;
 	using vec4 = glm::vec4;

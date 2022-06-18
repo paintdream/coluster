@@ -40,16 +40,17 @@ namespace PaintsNow {
 		virtual void FreeWarpIndex(unsigned int warp) = 0;
 
 		// Frame related
-		class FrameCallback {
+		class EngineCallback {
 		public:
-			virtual ~FrameCallback() {}
+			virtual ~EngineCallback() {}
 
 			virtual void OnRenderBegin() = 0;
 			virtual void OnRenderEnd() = 0;
+			virtual void OnEngineReset(bool exit) = 0;
 		};
 
-		virtual void RegisterFrameCallback(FrameCallback* frameCallback) = 0;
-		virtual void UnregisterFrameCallback(FrameCallback* frameCallback) = 0;
+		virtual void RegisterEngineCallback(EngineCallback* frameCallback) = 0;
+		virtual void UnregisterEngineCallback(EngineCallback* frameCallback) = 0;
 
 		// Stream operations
 		class Stream;
@@ -65,5 +66,13 @@ namespace PaintsNow {
 		// Profiler
 		virtual void PushProfilerSection(const char* text) = 0;
 		virtual void PopProfilerSection() = 0;
+
+		// Script
+		typedef const char* (*ScriptHandler)(const char* requestData, unsigned long& len, void* context);
+		typedef void (*ScriptHandlerResponse)(const char* responseData, unsigned long len, void* context);
+
+		virtual void RegisterScriptHandler(const char* procedure, ScriptHandler scriptHandler, ScriptHandlerResponse response, void* context) = 0;
+		virtual void UnregisterScriptHandler(const char* procedure) = 0;
+		virtual bool CallScript(const char* procedure, const char* requestData, unsigned long len, ScriptHandlerResponse response, void* context) = 0;
 	};
 }

@@ -9,7 +9,7 @@
 namespace coluster {
 	class sprite_t {
 	public:
-		coroutine_t tick();
+		coroutine_t tick(scalar dtime);
 		id_t id;
 	};
 }

@@ -21,6 +21,11 @@ namespace coluster {
 		std::function<void()> func;
 	};
 
+	size_t leaves_worker_t::get_thread_count() const noexcept {
+		assert(GPlugin != nullptr);
+		return GPlugin->GetThreadCount();
+	}
+
 	size_t leaves_worker_t::get_current_thread_index() const noexcept {
 		assert(GPlugin != nullptr);
 		return GPlugin->GetCurrentThreadIndex();
@@ -29,6 +34,30 @@ namespace coluster {
 	void leaves_worker_t::queue(std::function<void()>&& func, size_t priority) {
 		assert(GPlugin != nullptr);
 		GPlugin->QueueTask(new Task(std::move(func)), static_cast<int>(priority));
+	}
+
+	struct frame_ticker_params {
+		uint32_t dtime; // dtime in milliseconds
+	};
+
+	const char* leaves_worker_t::handle_frame_ticker(const char* request, unsigned long& len, void* context) {
+		// parse delta time from request
+		if (len >= sizeof(frame_ticker_params)) {
+			const frame_ticker_params& params = *reinterpret_cast<const frame_ticker_params*>(request);
+			leaves_worker_t& worker = *reinterpret_cast<leaves_worker_t*>(context);
+
+			scalar dtime = scalar(params.dtime) / scalar(1000);
+			assert(worker.frame_ticker);
+			worker.frame_ticker(dtime);
+		}
+
+		return nullptr;
+	}
+
+	void leaves_worker_t::bind_frame_ticker(std::function<void(scalar)>&& ticker) {
+		assert(!frame_ticker); // only bind once
+		frame_ticker = std::move(ticker);
+		GPlugin->RegisterScriptHandler("coluster_frame_ticker", handle_frame_ticker, nullptr, this);
 	}
 }
 
