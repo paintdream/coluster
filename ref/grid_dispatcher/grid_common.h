@@ -78,6 +78,7 @@ namespace grid {
 		static constexpr size_t element_count = block_size / sizeof(element_t);
 		static constexpr bool element_count_pow_two = ((size_t)1 << log2<element_count>::value) == element_count;
 		static constexpr size_t counter_limit = element_count * ((size_t)1 << (sizeof(size_t) * 8 - 1 - log2<element_count>::value));
+		static_assert((counter_limit & ((size_t)1 << (sizeof(size_t) * 8 - 1))) != 0, "not max limit!");
 		using type = element_t;
 		using node_allocator_t = allocator_t<storage_t>;
 

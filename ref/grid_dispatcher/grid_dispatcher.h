@@ -211,21 +211,6 @@ namespace grid {
 			return interrupting.exchange(1, std::memory_order_relaxed) == 0;
 		}
 
-		// poll until preempt
-		bool preempt_poll(size_t delay) {
-			while (!preempt()) {
-				if (async_worker.is_terminated()) {
-					return false;
-				}
-
-				if (!async_worker.poll()) {
-					async_worker.delay(delay);
-				}
-			}
-
-			return true;
-		}
-
 		// yield execution atomically, returns true on success.
 		bool yield() noexcept(noexcept(std::declval<grid_warp_t>().flush())) {
 			grid_warp_t** exp = &get_current_warp_internal();
