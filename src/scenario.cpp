@@ -1,11 +1,35 @@
 #include "scenario.h"
 
 namespace coluster {
-	scenario_t::scenario_t(worker_t& worker_impl) noexcept : worker(worker_impl), dispatcher(worker), tick_warp(worker, 0), script_warp(worker, 0) {
-		worker.bind_frame_ticker([this](scalar dtime) { frame_ticker(dtime); });
+	scenario_t::scenario_t(worker_t& worker_impl, framework_t& framework_impl) noexcept : worker(worker_impl), dispatcher(worker), tick_warp(worker, 0), script_warp(worker, 0), framework(framework_impl) {
+		exiting.store(0, std::memory_order_relaxed);
+		running.store(0, std::memory_order_relaxed);
+		tick_fence.store(0, std::memory_order_release);
+		framework.register_listener(this);
+
+		// start logic loop
+		logic().run();
 	}
 
-	void scenario_t::frame_ticker(scalar dtime) {
+	scenario_t::~scenario_t() {
+		framework.unregister_listener(this);
+		auto guard = grid::write_fence(tick_fence);
+		exiting.store(1, std::memory_order_relaxed);
+
+		// exit loop if needed
+		coroutine_handle handle = await_handle.exchange(coroutine_handle(), std::memory_order_acq_rel);
+		if (handle) {
+			handle.resume();
+		}
+
+		// join tick()
+		if (running.exchange(~(size_t)0, std::memory_order_acquire) == 1) {
+			running.wait(0, std::memory_order_release);
+		}
+	}
+
+	void scenario_t::frame_tick(scalar dtime) {
+		auto guard = grid::write_fence(tick_fence);
 		pending_frames.push(dtime);
 
 		coroutine_handle handle = await_handle.exchange(coroutine_handle(), std::memory_order_acq_rel);
@@ -23,21 +47,33 @@ namespace coluster {
 	}
 
 	scalar scenario_t::await_resume() noexcept {
-		assert(!pending_frames.empty());
-		scalar dtime = pending_frames.top();
-		pending_frames.pop();
+		if (exiting.load(std::memory_order_acquire)) {
+			return scalar(-1);
+		} else {
+			assert(!pending_frames.empty());
+			scalar dtime = pending_frames.top();
+			pending_frames.pop();
 
-		return dtime;
+			return dtime;
+		}
 	}
 
 	coroutine_t scenario_t::logic() {
-		while (true) {
-			scalar dtime = co_await *this;
-			if (dtime < 0)
-				break;
+		size_t status = running.exchange(1, std::memory_order_acquire);
+		if (status == 0) {
+			while (true) {
+				// acquire next frame
+				scalar dtime = co_await *this;
+				if (dtime < 0) // exit?
+					break;
 
-			co_await grid::grid_switch(&script_warp);
-			co_await grid::grid_switch(&tick_warp);
+				co_await grid::grid_switch(&script_warp);
+				co_await grid::grid_switch(&tick_warp);
+			}
+		}
+
+		if (status == ~(size_t)0 || running.exchange(0, std::memory_order_release) == ~(size_t)0) {
+			running.notify_one();
 		}
 	}
 }

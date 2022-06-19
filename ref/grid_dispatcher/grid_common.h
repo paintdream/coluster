@@ -46,6 +46,46 @@ SOFTWARE.
 #endif
 
 namespace grid {
+	template <typename atomic_t>
+	class write_fence_t {
+	public:
+		write_fence_t(std::atomic<atomic_t>& var) noexcept : variable(var) {
+			assert(variable.exchange(~(atomic_t)0, std::memory_order_acquire) == 0);
+		}
+
+		~write_fence_t() {
+			assert(variable.exchange(0, std::memory_order_release) == ~(atomic_t)0);
+		}
+
+	private:
+		std::atomic<atomic_t>& variable;
+	};
+
+	template <typename atomic_t>
+	write_fence_t<atomic_t> write_fence(std::atomic<atomic_t>& variable) noexcept {
+		return write_fence_t<atomic_t>(variable);
+	}
+
+	template <typename atomic_t>
+	class read_fence_t {
+	public:
+		read_fence_t(std::atomic<atomic_t>& var) noexcept : variable(var) {
+			assert(variable.fetch_add(1, std::memory_order_acquire) != ~(atomic_t)0);
+		}
+
+		~read_fence_t() {
+			assert(variable.fetch_sub(1, std::memory_order_release) != ~(atomic_t)0);
+		}
+
+	private:
+		std::atomic<atomic_t>& variable;
+	};
+
+	template <typename atomic_t>
+	read_fence_t<atomic_t> read_fence(std::atomic<atomic_t>& variable) noexcept {
+		return read_fence_t<atomic_t>(variable);
+	}
+
 	template <typename target_t, typename source_t>
 	target_t verify_cast(source_t&& src) noexcept {
 		target_t ret = static_cast<target_t>(src);
