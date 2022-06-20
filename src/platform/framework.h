@@ -16,8 +16,7 @@ namespace coluster {
 			virtual void frame_tick(scalar dtime) = 0;
 		};
 
-		virtual void register_listener(listener_t* listener) = 0;
-		virtual void unregister_listener(listener_t* listener) = 0;
+		virtual void bind_listener(listener_t* listener) = 0;
 		virtual void register_procedure(const char* name, std::function<std::string(std::string_view)>&& func) = 0;
 		virtual void unregister_procedure(const char* name) = 0;
 	};

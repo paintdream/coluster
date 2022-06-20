@@ -71,8 +71,11 @@ namespace PaintsNow {
 		typedef const char* (*ScriptHandler)(const char* requestData, unsigned long& len, void* context);
 		typedef void (*ScriptHandlerResponse)(const char* responseData, unsigned long len, void* context);
 
-		virtual void RegisterScriptHandler(const char* procedure, ScriptHandler scriptHandler, ScriptHandlerResponse response, void* context) = 0;
-		virtual void UnregisterScriptHandler(const char* procedure) = 0;
-		virtual bool CallScript(const char* procedure, const char* requestData, unsigned long len, ScriptHandlerResponse response, void* context) = 0;
+		class Script;
+		virtual Script* AllocateScript() = 0;
+		virtual void RegisterScriptHandler(Script* script, const char* procedure, ScriptHandler scriptHandler, ScriptHandlerResponse response, void* context) = 0;
+		virtual void UnregisterScriptHandler(Script* script, const char* procedure) = 0;
+		virtual bool CallScript(Script* script, const char* procedure, const char* requestData, unsigned long len, ScriptHandlerResponse response, void* context) = 0;
+		virtual void FreeScript(Script* script) = 0;
 	};
 }

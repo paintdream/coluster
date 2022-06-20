@@ -5,8 +5,6 @@ using namespace PaintsNow;
 
 namespace coluster {
 	static IPlugin* global_plugin = nullptr;
-	static std::mutex frame_lock;
-	static std::vector<leaves_plugin_t::listener_t*> frame_listeners;
 
 	struct alignas(64) Task : public IPlugin::Task {
 	public:
@@ -26,8 +24,13 @@ namespace coluster {
 		std::function<void()> func;
 	};
 
-	leaves_plugin_t::leaves_plugin_t() noexcept {
+	leaves_plugin_t::leaves_plugin_t() noexcept : listener(nullptr) {
 		plugin_fence.store(0, std::memory_order_relaxed);
+		script = global_plugin->AllocateScript();
+	}
+
+	leaves_plugin_t::~leaves_plugin_t() {
+		global_plugin->FreeScript(reinterpret_cast<IPlugin::Script*>(script));
 	}
 
 	size_t leaves_plugin_t::get_thread_count() const noexcept {
@@ -54,25 +57,26 @@ namespace coluster {
 		if (len >= sizeof(frame_ticker_params)) {
 			const frame_ticker_params& params = *reinterpret_cast<const frame_ticker_params*>(request);
 			scalar dtime = scalar(params.dtime) / scalar(1000);
+			leaves_plugin_t* plugin = reinterpret_cast<leaves_plugin_t*>(context);
 
-			std::lock_guard<std::mutex> guard(frame_lock);
-			std::vector<listener_t*> listeners = frame_listeners;
-			for (size_t i = 0; i < listeners.size(); i++) {
-				listeners[i]->frame_tick(dtime);
+			if (plugin->listener != nullptr) {
+				plugin->listener->frame_tick(dtime);
 			}
 		}
 
 		return nullptr;
 	}
 
-	void leaves_plugin_t::register_listener(listener_t* listener) {
-		std::lock_guard<std::mutex> guard(frame_lock);
-		grid::binary_insert(frame_listeners, listener);
-	}
+	void leaves_plugin_t::bind_listener(listener_t* instance) {
+		auto guard = grid::write_fence(plugin_fence);
+		assert(listener != instance);
+		listener = instance;
 
-	void leaves_plugin_t::unregister_listener(listener_t* listener) {
-		std::lock_guard<std::mutex> guard(frame_lock);
-		grid::binary_erase(frame_listeners, listener);
+		if (instance != nullptr) {
+			global_plugin->RegisterScriptHandler(reinterpret_cast<IPlugin::Script*>(script), "coluster_frame_ticker", &coluster::leaves_plugin_t::handle_frame_ticker, nullptr, this);
+		} else {
+			global_plugin->UnregisterScriptHandler(reinterpret_cast<IPlugin::Script*>(script), "coluster_frame_ticker");
+		}
 	}
 
 	const char* leaves_plugin_t::handle_procedure(const char* request, unsigned long& len, void* context) {
@@ -92,14 +96,14 @@ namespace coluster {
 		procedure_t& proc = procedures[name];
 		proc.func = std::move(func);
 		proc.plugin = this;
-		global_plugin->RegisterScriptHandler(name, &coluster::leaves_plugin_t::handle_procedure, nullptr, &proc);
+		global_plugin->RegisterScriptHandler(reinterpret_cast<IPlugin::Script*>(script), name, &coluster::leaves_plugin_t::handle_procedure, nullptr, &proc);
 	}
 
 	void leaves_plugin_t::unregister_procedure(const char* name) {
 		assert(global_plugin != nullptr);
 
 		auto guard = grid::write_fence(plugin_fence);
-		global_plugin->UnregisterScriptHandler(name);
+		global_plugin->UnregisterScriptHandler(reinterpret_cast<IPlugin::Script*>(script), name);
 		procedures.erase(name);
 	}
 }
@@ -116,6 +120,5 @@ namespace coluster {
 
 extern "C" DLL_PUBLIC bool LeavesMain(IPlugin * plugin) {
 	coluster::global_plugin = plugin;
-	plugin->RegisterScriptHandler("coluster_frame_ticker", &coluster::leaves_plugin_t::handle_frame_ticker, nullptr, nullptr);
 	return true;
 }

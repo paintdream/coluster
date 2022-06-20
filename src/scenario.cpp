@@ -5,14 +5,14 @@ namespace coluster {
 		exiting.store(0, std::memory_order_relaxed);
 		running.store(0, std::memory_order_relaxed);
 		tick_fence.store(0, std::memory_order_release);
-		framework.register_listener(this);
+		framework.bind_listener(this);
 
 		// start logic loop
 		logic().run();
 	}
 
 	scenario_t::~scenario_t() {
-		framework.unregister_listener(this);
+		framework.bind_listener(nullptr);
 		auto guard = grid::write_fence(tick_fence);
 		exiting.store(1, std::memory_order_relaxed);
 
