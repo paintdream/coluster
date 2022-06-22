@@ -118,7 +118,32 @@ namespace coluster {
 #endif
 #endif
 
+using namespace coluster;
+
+static const char* create_leaves_plugin(const char* request, unsigned long& len, void* context) {
+	char* ptr = new char[sizeof(uint64_t)];
+	leaves_plugin_t* instance = new leaves_plugin_t();
+	memcpy(ptr, &instance, sizeof(instance));
+	len = sizeof(uint64_t);
+
+	return ptr;
+}
+
+static const char* delete_leaves_plugin(const char* request, unsigned long& len, void* context) {
+	assert(len >= sizeof(size_t));
+	leaves_plugin_t* plugin = *reinterpret_cast<leaves_plugin_t* const*>(request);
+	delete plugin;
+	return nullptr;
+}
+
+static void free_memory(const char* responseData, unsigned long len, void* context) {
+	delete[] responseData;
+}
+
 extern "C" DLL_PUBLIC bool LeavesMain(IPlugin * plugin) {
 	coluster::global_plugin = plugin;
+	plugin->RegisterScriptHandler(nullptr, "create_leaves_plugin", create_leaves_plugin, free_memory, nullptr);
+	plugin->RegisterScriptHandler(nullptr, "delete_leaves_plugin", delete_leaves_plugin, nullptr, nullptr);
+
 	return true;
 }

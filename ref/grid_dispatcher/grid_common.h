@@ -40,10 +40,7 @@ SOFTWARE.
 #include <vector>
 #include <cstring>
 #include <functional>
-
-#ifndef _MSC_VER
-#include <malloc.h>
-#endif
+#include <cstdlib>
 
 namespace grid {
 	template <typename atomic_t>
@@ -1331,11 +1328,22 @@ namespace grid {
 #endif
 	}
 
+	template <typename value_t>
+	uint32_t get_trailing_zeros_general(value_t value) {
+		if /*constexpr*/ (sizeof(value_t) == sizeof(uint32_t)) {
+			return get_trailing_zeros((uint32_t)value);
+		} else {
+			return get_trailing_zeros((uint64_t)value);
+		}
+	}
+
 	inline void* alloc_aligned(size_t size, size_t alignment) {
 #ifdef _MSC_VER
 		return _aligned_malloc(size, alignment);
 #else
-		return memalign(alignment, size);
+		void* p = nullptr;
+		posix_memalign(&p, alignment, size);
+		return p;
 #endif
 	}
 
@@ -1369,7 +1377,7 @@ namespace grid {
 						size_t bit = bitmap + 1;
 						bit = bit & (~bit + 1);
 						if (bit != 0) {
-							size_t index = get_trailing_zeros(bit) + n * sizeof(size_t) * 8;
+							size_t index = get_trailing_zeros_general(bit) + n * sizeof(size_t) * 8;
 							if (index < byte_count) {
 								bitmap |= bit;
 								return block.address + (n * sizeof(size_t) * 8 + index) * byte_count;
@@ -1560,7 +1568,7 @@ namespace grid {
 						size_t bit = get_alignment(mask + 1);
 						if (!(b.fetch_or(bit, std::memory_order_relaxed) & bit)) {
 							// get index of bitmap
-							size_t index = get_trailing_zeros(bit) + offset + n * 8 * sizeof(size_t);
+							size_t index = get_trailing_zeros_general(bit) + offset + n * 8 * sizeof(size_t);
 							if (index < item_count) {
 								p->ref_count.fetch_add(1, std::memory_order_relaxed);
 								// add to recycle system if needed
