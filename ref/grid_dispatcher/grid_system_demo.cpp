@@ -2,6 +2,8 @@
 using namespace grid;
 
 using warp_t = grid_warp_t<grid_async_worker_t<>>;
+using entity_t = uint32_t;
+using entity_allocator = grid_entity_allocator_t<entity_t>;
 
 struct grid_component_matrix_t {
 	float values[4][4];
@@ -22,20 +24,24 @@ int main(void) {
 		warps.emplace_back(worker);
 	}
 
-	using entity_t = uint32_t;
 	grid_system_t<entity_t, block_allocator_t, 8192, grid_component_matrix_t, size_t> matrix_system;
 	std::vector<entity_t> entities;
+	grid_entity_allocator_t<entity_t> allocator;
 
 	for (size_t k = 0; k < 128; k++) {
-		entities.emplace_back(matrix_system.append(grid_component_matrix_t(), k));
+		entity_t entity = allocator.allocate();
+		matrix_system.insert(entity, grid_component_matrix_t(), k);
+		entities.emplace_back(entity);
 	}
 
 	for (size_t m = 0; m < 32; m++) {
-		matrix_system.remove(entities[m] * 4);
+		entity_t entity = entities[m] * 4;
+		matrix_system.remove(entity);
+		allocator.free(entity);
 	}
 
 	for (size_t m = 0; m < 64; m++) {
-		matrix_system.insert(entities[m] * 4, grid_component_matrix_t(), m);
+		matrix_system.insert(allocator.allocate(), grid_component_matrix_t(), m);
 	}
 
 	float sum = 0;
@@ -43,6 +49,7 @@ int main(void) {
 		sum += item.values[0][0];
 	}
 
+	allocator.reset();
 	printf("Sum should be zero: %f\n", sum);
 	
 	// test for running example from thread pool
@@ -68,7 +75,7 @@ int main(void) {
 
 	grid_system_t<entity_t, block_allocator_t, 8192, float, size_t> other_system;
 	for (size_t k = 0; k < 5; k++) {
-		other_system.append(0.1f, k);
+		other_system.insert(grid::verify_cast<entity_t>(k), 0.1f, k);
 	}
 
 	using sys_t = grid_systems_t<block_allocator_t, decltype(matrix_system), decltype(other_system)>;

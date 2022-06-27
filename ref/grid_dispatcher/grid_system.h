@@ -32,7 +32,7 @@ SOFTWARE.
 #include <array>
 
 namespace grid {
-	// a simple entity-component-system
+	// a compile-time typed entity-component-system
 	// thread safety:
 	// 1. [no ] insert/insert
 	// 2. [no ] remove/remove
@@ -86,11 +86,12 @@ namespace grid {
 
 	// components_t is not allowed to contain repeated types
 	template <typename entity_t, template <typename...> class allocator_t, size_t block_size, typename... components_t>
-	class grid_system_t {
+	class grid_system_t : protected enable_read_write_fence_t<> {
 	public:
 		template <typename target_t>
 		struct fetch_index : fetch_index_impl<target_t, components_t...> {};
 		static constexpr size_t component_block_size = block_size;
+		using index_t = entity_t; // just for alignment
 
 		grid_system_t() {
 			// check if there are duplicated types
@@ -99,103 +100,109 @@ namespace grid {
 
 		// entity-based component insertion
 		bool valid(entity_t entity) const noexcept {
-			return entity < entity_components.size() && entity_components[entity] != ~(size_t)0;
+			auto guard = read_fence();
+			return grid::binary_find(entity_components.begin(), entity_components.end(), entity) != entity_components.end();
 		}
 
-		// returns true if the existing entity was replaced
+		// returns true if the existing entity was replaced, or false if new entity was created
 		template <typename... elements_t>
 		bool insert(entity_t entity, elements_t&&... t) {
-			if (entity < entity_components.size()) {
-				if (entity_components[entity] != ~(size_t)0) {
-					// replace contents only, do not add new entity
-					emplace_components<sizeof...(components_t)>(std::forward<elements_t>(t)...);
-					return true;
+			auto guard = write_fence();
+
+			auto iterator = grid::binary_find(entity_components.begin(), entity_components.end(), entity);
+			if (iterator != entity_components.end()) {
+				index_t index = iterator->second;
+				if (index == ~(index_t)0) {
+					index = verify_cast<index_t>(entities.end_index());
+					replace_components<sizeof...(components_t)>(index, std::forward<elements_t>(t)...);
+					iterator->second = index;
+				} else {
+					replace_components<sizeof...(components_t)>(index, std::forward<elements_t>(t)...);
 				}
+
+				return true;
 			} else {
-				entity_components.resize(entity + 1, ~(size_t)0);
+				preserve_entity(placeholder<components_t...>());
+				emplace_components<sizeof...(components_t)>(std::forward<elements_t>(t)...);
+				entities.emplace(entity);
+				grid::binary_insert(entity_components, grid::make_key_value(entity, grid::verify_cast<index_t>(entities.end_index())));
+
+				return false;
 			}
-
-			preserve_entity(placeholder<components_t...>());
-			emplace_components<sizeof...(components_t)>(std::forward<elements_t>(t)...);
-			entities.emplace(entity);
-			entity_components[entity] = entities.end_index();
-
-			return false;
 		}
 
-		template <typename... elements_t>
-		entity_t append(elements_t&&... t) {
-			static_assert(sizeof...(elements_t) == sizeof...(components_t), "incorrect number of elements.");
-			// may throw exceptions
-			// do not actually push any elements here
-			preserve_entity(placeholder<components_t...>());
+		void compress() noexcept {
+			auto guard = write_fence();
 
-			entity_t entity;
-			if (!free_entities.empty()) {
-				entity = free_entities.top();
-				free_entities.pop();
-				entity_components[entity] = entities.end_index();
-			} else {
-				entity = static_cast<entity_t>(entity_components.size());
-				entity_components.emplace_back(entities.end_index());
+			size_t j = 0;
+			for (size_t i = 0; i < entity_components.size(); i++) {
+				auto& item = entity_components[i];
+				if (item.second != ~(index_t)0) {
+					entity_components[j++] = item;
+				}
 			}
 
-			// preserved earlier, so the following code must not throw any exceptions
-			emplace_components<sizeof...(components_t)>(std::forward<elements_t>(t)...);
-			entities.emplace(entity);
-
-			return entity;
+			entity_components.resize(j);
 		}
 
 		size_t size() const noexcept {
+			auto guard = read_fence();
 			return entities.size();
 		}
 
 		// get specified component of given entity
 		template <typename component_t>
 		component_t& get(entity_t entity) noexcept {
+			auto guard = read_fence();
 			assert(valid(entity));
-			return std::get<fetch_index<component_t>::value>(components).get(entity_components[entity]);
+			return std::get<fetch_index<component_t>::value>(components).get(grid::binary_find(entity_components.begin(), entity_components.end(), entity)->second);
 		}
 
 		template <typename component_t>
 		const component_t& get(entity_t entity) const noexcept {
+			auto guard = read_fence();
+
 			assert(valid(entity));
-			return std::get<fetch_index<component_t>::value>(components).get(entity_components[entity]);
+			return std::get<fetch_index<component_t>::value>(components).get(grid::binary_find(entity_components.begin(), entity_components.end(), entity)->second);
 		}
 
 		// entity-based component removal
 		void remove(entity_t entity) {
 			assert(valid(entity));
+			auto guard = write_fence();
 			assert(!entities.empty());
-			assert(entity < entity_components.size());
 
-			free_entities.preserve();
 			entity_t top_entity = entities.top();
 
 			// swap the top element (component_t, entity_t) with removed one
 			if (entity != top_entity) {
 				// move!!
-				size_t slot = entity_components[entity];
-				entity_components[top_entity] = slot;
-				swap_components(slot, placeholder<components_t...>());
-				entity_components[entity] = ~(size_t)0;
+				auto it = grid::binary_find(entity_components.begin(), entity_components.end(), top_entity);
+				auto ip = grid::binary_find(entity_components.begin(), entity_components.end(), entity);
+
+				index_t index = ip->second;
+				it->second = index; // reuse space!
+				ip->second = ~(index_t)0;
+
+				move_components(index, placeholder<components_t...>());
 			}
 
 			pop_components(placeholder<components_t...>());
 			entities.pop();
-			free_entities.emplace(entity);
 		}
 
 		// iterate components
 		template <typename component_t, typename callable_t>
 		void for_each(callable_t&& op) noexcept(noexcept(std::declval<grid_queue_list_t<component_t, block_size, allocator_t>>().for_each(std::forward<callable_t>(op)))) {
+			auto guard = read_fence();
 			std::get<fetch_index<component_t>::value>(components).for_each(std::forward<callable_t>(op));
 		}
 
 		// n is the expected group size
 		template <typename component_t, typename warp_t, typename operand_t>
 		void for_each_parallel(operand_t&& op, size_t n = grid_queue_list_t<component_t, block_size, allocator_t>::node_t::element_count) {
+			auto guard = read_fence();
+
 			auto& target_components = std::get<fetch_index<component_t>::value>(components);
 			warp_t* warp = warp_t::get_current_warp();
 			assert(warp != nullptr);
@@ -240,11 +247,13 @@ namespace grid {
 
 		template <typename component_t>
 		grid_queue_list_t<component_t, block_size, allocator_t>& component() noexcept {
+			auto guard = read_fence();
 			return std::get<fetch_index<component_t>::value>(components);
 		}
 
 		template <typename component_t>
 		const grid_queue_list_t<component_t, block_size, allocator_t>& component() const noexcept {
+			auto guard = read_fence();
 			return std::get<fetch_index<component_t>::value>(components);
 		}
 
@@ -264,24 +273,24 @@ namespace grid {
 		}
 
 		template <size_t i>
-		void replace_components(size_t id) {}
+		void replace_components(index_t id) {}
 
 		template <size_t i, typename first_t, typename... elements_t>
-		void replace_components(size_t id, first_t&& first, elements_t&&... remaining) {
+		void replace_components(index_t id, first_t&& first, elements_t&&... remaining) {
 			std::get<sizeof...(components_t) - i>(components).get(id) = std::forward<first_t>(first);
 			replace_components<i - 1>(id, std::forward<elements_t>(remaining)...);
 		}
 
 		template <typename first_t, typename... elements_t>
-		void swap_components(size_t index, placeholder<first_t, elements_t...>) noexcept {
+		void move_components(index_t index, placeholder<first_t, elements_t...>) noexcept {
 			auto& comp = std::get<sizeof...(elements_t)>(components);
 			auto& top = comp.top();
 			comp.get(index) = std::move(top);
 
-			swap_components(index, placeholder<elements_t...>());
+			move_components(index, placeholder<elements_t...>());
 		}
 
-		void swap_components(size_t& index, placeholder<>) noexcept {}
+		void move_components(index_t& index, placeholder<>) noexcept {}
 
 		template <typename first_t, typename... elements_t>
 		void preserve_entity(placeholder<first_t, elements_t...>) {
@@ -291,6 +300,10 @@ namespace grid {
 
 		void preserve_entity(placeholder<>) {
 			entities.preserve();
+
+			if (entity_components.capacity() <= entity_components.size() + 1) {
+				entity_components.reserve(entity_components.size() * 3 / 2);
+			}
 		}
 
 		template <typename first_t, typename... elements_t>
@@ -303,9 +316,40 @@ namespace grid {
 
 	protected:
 		std::tuple<grid_queue_list_t<components_t, block_size, allocator_t>...> components;
-		std::vector<size_t> entity_components;
+		std::vector<grid::key_value_t<entity_t, index_t>> entity_components;
 		grid_queue_list_t<entity_t, block_size, allocator_t> entities;
-		grid_queue_list_t<entity_t, block_size, allocator_t> free_entities;
+	};
+
+	template <typename entity_t, size_t block_size = 4096>
+	class grid_entity_allocator_t : protected enable_in_out_fence_t<> {
+	public:
+		entity_t allocate() noexcept(noexcept(free_entities.pop())) {
+			auto guard = in_fence();
+			if (!free_entities.empty()) {
+				entity_t entity = free_entities.top();
+				free_entities.pop();
+				return entity;
+			} else {
+				return max_allocated_entity++;
+			}
+		}
+
+		void free(entity_t entity) noexcept(noexcept(free_entities.push(entity_t()))) {
+			auto guard = out_fence();
+			free_entities.push(entity);
+		}
+
+		void reset() noexcept(noexcept(free_entities.reset(0))) {
+			auto in_guard = in_fence();
+			auto out_guard = out_fence();
+
+			free_entities.reset(0);
+			max_allocated_entity = 0;
+		}
+
+	protected:
+		grid_queue_list_t<entity_t, block_size> free_entities;
+		entity_t max_allocated_entity = 0;
 	};
 
 	template <template <typename...> class allocator_t, typename... subsystems_t>
@@ -585,7 +629,6 @@ namespace grid {
 			iterator end() noexcept {
 				return iterator::make_iterator_end(*this, system_count - 1, subcomponents[system_count - 1], gen_seq<sizeof...(components_t)>());
 			}
-
 
 			template <typename callable_t>
 			void for_each(callable_t&& op) {

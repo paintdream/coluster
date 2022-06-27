@@ -10,7 +10,7 @@
 #include "platform/framework.h"
 
 namespace coluster {
-	class scenario_t : public framework_t::listener_t {
+	class scenario_t : public framework_t::listener_t, protected grid::enable_read_write_fence_t<> {
 	public:
 		scenario_t(worker_t& worker, framework_t& framework) noexcept;
 		virtual ~scenario_t();

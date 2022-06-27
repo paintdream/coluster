@@ -13,7 +13,7 @@ namespace coluster {
 
 	scenario_t::~scenario_t() {
 		framework.bind_listener(nullptr);
-		auto guard = grid::write_fence(tick_fence);
+		auto guard = write_fence();
 		exiting.store(1, std::memory_order_relaxed);
 
 		// exit loop if needed
@@ -29,7 +29,7 @@ namespace coluster {
 	}
 
 	void scenario_t::frame_tick(scalar dtime) {
-		auto guard = grid::write_fence(tick_fence);
+		auto guard = write_fence();
 		pending_frames.push(dtime);
 
 		coroutine_handle handle = await_handle.exchange(coroutine_handle(), std::memory_order_acq_rel);

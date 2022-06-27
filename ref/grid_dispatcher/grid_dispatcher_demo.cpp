@@ -176,17 +176,10 @@ void simple_explosion(void) {
 	std::function<void()> explosion;
 
 	// queue tasks randomly to test if dispatcher could handle them correctly.
-	std::atomic<size_t> fence;
-	fence.store(0, std::memory_order_release);
-	do {
-		auto guard = write_fence(fence);
-	} while (false);
-
-	explosion = [&warps, &explosion, &worker, &fence]() {
+	explosion = [&warps, &explosion, &worker]() {
 		if (worker.is_terminated())
 			return;
 
-		auto guard = read_fence(fence);
 		warp_t& current_warp = *warp_t::get_current_warp();
 		size_t warp_index = &current_warp - &warps[0];
 		warp_data[warp_index]++;

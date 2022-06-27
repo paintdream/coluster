@@ -41,47 +41,163 @@ SOFTWARE.
 #include <cstring>
 #include <functional>
 #include <cstdlib>
+#include <thread>
 
 namespace grid {
 	template <typename atomic_t>
 	class write_fence_t {
 	public:
-		write_fence_t(std::atomic<atomic_t>& var) noexcept : variable(var) {
-			assert(variable.exchange(~(atomic_t)0, std::memory_order_acquire) == 0);
+#ifdef _DEBUG
+		write_fence_t(std::atomic<atomic_t>& var, std::thread::id& id) noexcept : variable(var), thread_id(id) {
+			acquire(variable, thread_id);
 		}
 
 		~write_fence_t() {
+			release(variable, thread_id);
+		}
+
+		static void acquire(std::atomic<atomic_t>& variable, std::thread::id& thread_id) noexcept {
+			assert(variable.exchange(~(atomic_t)0, std::memory_order_acquire) == 0);
+			thread_id = std::this_thread::get_id();
+		}
+
+		static void release(std::atomic<atomic_t>& variable, std::thread::id& thread_id) noexcept {
+			thread_id = std::thread::id();
 			assert(variable.exchange(0, std::memory_order_release) == ~(atomic_t)0);
 		}
 
 	private:
 		std::atomic<atomic_t>& variable;
+		std::thread::id& thread_id;
+#endif
 	};
-
-	template <typename atomic_t>
-	write_fence_t<atomic_t> write_fence(std::atomic<atomic_t>& variable) noexcept {
-		return write_fence_t<atomic_t>(variable);
-	}
 
 	template <typename atomic_t>
 	class read_fence_t {
 	public:
-		read_fence_t(std::atomic<atomic_t>& var) noexcept : variable(var) {
-			assert(variable.fetch_add(1, std::memory_order_acquire) != ~(atomic_t)0);
+#ifdef _DEBUG
+		read_fence_t(std::atomic<atomic_t>& var, std::thread::id& id) noexcept : variable(var), thread_id(id) {
+			acquire(variable, thread_id);
 		}
 
 		~read_fence_t() {
+			release(variable, thread_id);
+		}
+
+		static void acquire(std::atomic<atomic_t>& variable, std::thread::id& thread_id) noexcept {
+			assert(variable.fetch_add(1, std::memory_order_acquire) != ~(atomic_t)0);
+			thread_id = std::this_thread::get_id();
+		}
+
+		static void release(std::atomic<atomic_t>& variable, std::thread::id& thread_id) noexcept {
+			thread_id = std::thread::id();
 			assert(variable.fetch_sub(1, std::memory_order_release) != ~(atomic_t)0);
 		}
 
 	private:
 		std::atomic<atomic_t>& variable;
+		std::thread::id& thread_id;
+#endif
 	};
 
-	template <typename atomic_t>
-	read_fence_t<atomic_t> read_fence(std::atomic<atomic_t>& variable) noexcept {
-		return read_fence_t<atomic_t>(variable);
-	}
+	template <typename atomic_t = size_t>
+	class enable_read_write_fence_t {
+	public:
+#ifdef _DEBUG
+		read_fence_t<atomic_t> read_fence() const noexcept {
+			return read_fence_t<atomic_t>(monitor, thread_id);
+		}
+
+		write_fence_t<atomic_t> write_fence() const noexcept {
+			return write_fence_t<atomic_t>(monitor, thread_id);
+		}
+
+		void acquire_read() const noexcept {
+			read_fence_t<atomic_t>::acquire(monitor, thread_id);
+		}
+
+		void release_read() const noexcept {
+			read_fence_t<atomic_t>::release(monitor, thread_id);
+		}
+
+		void acquire_write() const noexcept {
+			write_fence_t<atomic_t>::acquire(monitor, thread_id);
+		}
+
+		void release_write() const noexcept {
+			write_fence_t<atomic_t>::release(monitor, thread_id);
+		}
+#else
+		read_fence_t<atomic_t> read_fence() const noexcept {
+			return read_fence_t<atomic_t>();
+		}
+
+		write_fence_t<atomic_t> write_fence() const noexcept {
+			return write_fence_t<atomic_t>();
+		}
+
+		void acquire_read() const noexcept {}
+		void release_read() const noexcept {}
+		void acquire_write() const noexcept {}
+		void release_write() const noexcept {}
+#endif
+	private:
+#ifdef _DEBUG
+		mutable std::atomic<atomic_t> monitor = 0;
+		mutable std::thread::id thread_id;
+#endif
+	};
+
+	template <typename atomic_t = size_t>
+	class enable_in_out_fence_t {
+	public:
+#ifdef _DEBUG
+		write_fence_t<atomic_t> in_fence() const noexcept {
+			return write_fence_t<atomic_t>(in_monitor, in_thread_id);
+		}
+
+		write_fence_t<atomic_t> out_fence() const noexcept {
+			return write_fence_t<atomic_t>(out_monitor, out_thread_id);
+		}
+
+		void acquire_in() const noexcept {
+			return write_fence_t<atomic_t>::acquire(in_monitor, in_thread_id);
+		}
+
+		void release_in() const noexcept {
+			return write_fence_t<atomic_t>::release(in_monitor, in_thread_id);
+		}
+
+		void acquire_out() const noexcept {
+			return write_fence_t<atomic_t>::acquire(out_monitor, out_thread_id);
+		}
+
+		void release_out() const noexcept {
+			return write_fence_t<atomic_t>::release(out_monitor, out_thread_id);
+		}
+#else
+		write_fence_t<atomic_t> in_fence() const noexcept {
+			return write_fence_t<atomic_t>();
+		}
+
+		write_fence_t<atomic_t> out_fence() const noexcept {
+			return write_fence_t<atomic_t>();
+		}
+
+		void acquire_in() const noexcept {}
+		void release_in() const noexcept {}
+		void acquire_out() const noexcept {}
+		void release_out() const noexcept {}
+#endif
+
+	private:
+#ifdef _DEBUG
+		mutable std::atomic<atomic_t> in_monitor = 0;
+		mutable std::atomic<atomic_t> out_monitor = 0;
+		mutable std::thread::id in_thread_id;
+		mutable std::thread::id out_thread_id;
+#endif
+	};
 
 	template <typename target_t, typename source_t>
 	target_t verify_cast(source_t&& src) noexcept {
@@ -105,7 +221,7 @@ namespace grid {
 	}
 
 	template <typename element_t, size_t block_size = 4096, template <typename...> class allocator_t = std::allocator, bool fence = true>
-	class grid_queue_t {
+	class grid_queue_t : protected enable_in_out_fence_t<> {
 	public:
 		struct alignas(alignof(element_t)) storage_t {
 			uint8_t data[sizeof(element_t)];
@@ -150,6 +266,8 @@ namespace grid {
 
 		template <typename input_element_t>
 		element_t* push(input_element_t&& t) noexcept(noexcept(element_t(std::forward<input_element_t>(t)))) {
+			auto in_guard = in_fence();
+
 			if (full()) {
 				return nullptr; // this queue is full, push failed
 			}
@@ -167,27 +285,32 @@ namespace grid {
 		}
 
 		element_t& top() noexcept {
+			auto guard = out_fence();
 			assert(!empty()); // must checked before calling me (memory fence acquire implicited)
 			return *reinterpret_cast<element_t*>(&ring_buffer[pop_count % element_count]);
 		}
 
 		const element_t& top() const noexcept {
+			auto guard = out_fence();
 			assert(!empty()); // must checked before calling me (memory fence acquire implicited)
 			return *reinterpret_cast<const element_t*>(&ring_buffer[pop_count % element_count]);
 		}
 
 		element_t& get(size_t index) noexcept {
+			auto guard = out_fence();
 			assert(!empty()); // must checked before calling me (memory fence acquire implicited)
 			return *reinterpret_cast<element_t*>(&ring_buffer[index % element_count]);
 		}
 
 		const element_t& get(size_t index) const noexcept {
+			auto guard = out_fence();
 			assert(!empty()); // must checked before calling me (memory fence acquire implicited)
 			return *reinterpret_cast<const element_t*>(&ring_buffer[index % element_count]);
 		}
 
 		template <typename iterator_t>
 		iterator_t push(iterator_t from, iterator_t to) noexcept(noexcept(element_t(*from))) {
+			auto guard = in_fence();
 			if (full()) {
 				return from;
 			}
@@ -218,6 +341,7 @@ namespace grid {
 
 		template <typename iterator_t>
 		iterator_t pop(iterator_t from, iterator_t to) noexcept {
+			auto guard = out_fence();
 			if (empty()) {
 				return from;
 			}
@@ -251,6 +375,8 @@ namespace grid {
 		}
 
 		void pop() noexcept {
+			auto guard = out_fence();
+
 			assert(!empty());  // must checked before calling me (memory fence acquire implicited)
 			reinterpret_cast<element_t*>(&ring_buffer[pop_count % element_count])->~element_t();
 
@@ -262,6 +388,8 @@ namespace grid {
 		}
 
 		size_t pop(size_t n) noexcept {
+			auto guard = out_fence();
+
 			size_t m = std::min(n, size());
 			size_t rindex = pop_count % element_count;
 			size_t k = m;
@@ -308,6 +436,8 @@ namespace grid {
 
 		template <typename operation_t>
 		typename std::enable_if<std::is_constructible<std::function<void(element_t*, size_t)>, operation_t>::value>::type for_each(operation_t&& op) noexcept(noexcept(op(std::declval<element_t*>(), 0))) {
+			auto guard = out_fence();
+
 			if (empty())
 				return;
 
@@ -330,6 +460,8 @@ namespace grid {
 
 		template <typename operation_t>
 		typename std::enable_if<std::is_constructible<std::function<void(element_t&)>, operation_t>::value>::type for_each(operation_t&& op) noexcept(noexcept(op(std::declval<element_t&>()))) {
+			auto guard = out_fence();
+
 			if (empty())
 				return;
 
@@ -351,6 +483,8 @@ namespace grid {
 
 		template <typename operation_t>
 		typename std::enable_if<std::is_constructible<std::function<void(const element_t*, size_t)>, operation_t>::value>::type for_each(operation_t&& op) const noexcept(noexcept(op(std::declval<const element_t*>(), 0))) {
+			auto guard = out_fence();
+
 			if (empty())
 				return;
 
@@ -373,6 +507,8 @@ namespace grid {
 
 		template <typename operation_t>
 		typename std::enable_if<std::is_constructible<std::function<void(const element_t&)>, operation_t>::value>::type for_each(operation_t&& op) const noexcept(noexcept(op(std::declval<const element_t&>()))) {
+			auto guard = out_fence();
+
 			if (empty())
 				return;
 
@@ -393,6 +529,8 @@ namespace grid {
 		}
 
 		element_t* allocate(size_t count, size_t alignment) {
+			auto guard = in_fence();
+
 			assert(count >= alignment);
 			assert(count <= element_count);
 			// make alignment
@@ -417,6 +555,7 @@ namespace grid {
 		}
 
 		void deallocate(size_t count, size_t alignment) noexcept {
+			auto guard = out_fence();
 			assert(count >= alignment);
 			assert(count <= element_count);
 
@@ -439,10 +578,13 @@ namespace grid {
 		}
 
 		void reset(size_t init_count) noexcept {
+			auto in_guard = in_fence();
+
 			if (ring_buffer != nullptr) {
 				for_each([](element_t& e) { e.~element_t(); });
 			}
 
+			auto out_guard = out_fence();
 			if /* constexpr */ (fence) {
 				std::atomic_thread_fence(std::memory_order_release);
 			}
@@ -612,7 +754,7 @@ namespace grid {
 
 	// chain kfifos to make variant capacity.
 	template <typename element_t, size_t block_size = 4096, template <typename...> class allocator_t = std::allocator>
-	class grid_queue_list_t {
+	class grid_queue_list_t : enable_in_out_fence_t<> {
 	public:
 		static constexpr size_t element_count = block_size / sizeof(element_t);
 		using type = element_t;
@@ -675,7 +817,7 @@ namespace grid {
 				}
 			}
 		}
-
+		
 		void preserve() noexcept(noexcept(std::declval<node_allocator_t>().allocate(1))) {
 			if (push_head->full()) {
 				node_t* p = node_allocator.allocate(1);
@@ -690,12 +832,15 @@ namespace grid {
 
 		template <typename input_element_t>
 		element_t* push(input_element_t&& t) noexcept(noexcept(std::declval<grid_queue_list_t>().preserve()) && noexcept(std::declval<grid_queue_list_t>().emplace(std::forward<input_element_t>(t)))) {
+			auto guard = in_fence();
 			preserve();
 			return emplace(std::forward<input_element_t>(t));
 		}
 
 		template <typename iterator_t>
 		iterator_t push(iterator_t from, iterator_t to) noexcept(noexcept(std::declval<grid_queue_list_t>().push(*from))) {
+			auto guard = in_fence();
+
 			while (true) {
 				iterator_t next = push_head->push(from, to);
 				if (from == next)
@@ -704,11 +849,6 @@ namespace grid {
 				from = next;
 				preserve();
 			}
-		}
-
-		template <typename input_element_t>
-		element_t* emplace(input_element_t&& t) noexcept(noexcept(std::declval<node_t>().push(std::forward<input_element_t>(t)))) {
-			return push_head->push(std::forward<input_element_t>(t));
 		}
 
 		size_t end_index() const noexcept {
@@ -720,6 +860,8 @@ namespace grid {
 		}
 
 		const element_t& get(size_t index) const noexcept {
+			auto guard = out_fence();
+
 			for (const node_t* p = pop_head; p != push_head; p = p->next) {
 				if (p->end_index() - index > 0) {
 					return p->get(index);
@@ -730,6 +872,7 @@ namespace grid {
 		}
 
 		element_t& get(size_t index) noexcept {
+			auto guard = out_fence();
 			for (node_t* p = pop_head; p != push_head; p = p->next) {
 				if (p->end_index() - index > 0) {
 					return p->get(index);
@@ -741,6 +884,8 @@ namespace grid {
 
 		template <typename iterator_t>
 		iterator_t pop(iterator_t from, iterator_t to) noexcept {
+			auto guard = out_fence();
+
 			while (true) {
 				iterator_t next = pop_head->pop(from, to);
 				if (from == next) {
@@ -761,14 +906,17 @@ namespace grid {
 		}
 
 		element_t& top() noexcept {
+			auto guard = out_fence();
 			return pop_head->top();
 		}
 
 		const element_t& top() const noexcept {
+			auto guard = out_fence();
 			return pop_head->top();
 		}
 
 		void pop() noexcept {
+			auto guard = out_fence();
 			pop_head->pop();
 
 			// current queue is empty, remove it from list.
@@ -782,6 +930,8 @@ namespace grid {
 		}
 
 		size_t pop(size_t n) noexcept {
+			auto guard = out_fence();
+
 			while (n != 0) {
 				size_t m = std::min(n, pop_head->size());
 				pop_head->pop(m);
@@ -827,6 +977,8 @@ namespace grid {
 		}
 
 		element_t* allocate(size_t count, size_t alignment) {
+			auto guard = in_fence();
+
 			element_t* address;
 			while ((address = push_head->allocate(count, alignment)) == nullptr) {
 				if (push_head->next == nullptr) {
@@ -849,6 +1001,7 @@ namespace grid {
 		}
 
 		void deallocate(size_t size, size_t alignment) noexcept {
+			auto guard = out_fence();
 			pop_head->deallocate(size, alignment);
 
 			if (pop_head->empty() && pop_head != push_head) {
@@ -861,6 +1014,9 @@ namespace grid {
 		}
 
 		void reset(size_t reserved) noexcept {
+			auto in_guard = in_fence();
+			auto out_guard = out_fence();
+
 			node_t* p = push_head = pop_head;
 			p->reset(0); // always reserved
 			iterator_counter = element_count;
@@ -888,6 +1044,7 @@ namespace grid {
 
 		template <typename operation_t>
 		void for_each(operation_t&& op) noexcept(noexcept(std::declval<node_t>().for_each(std::forward<operation_t>(op)))) {
+			auto guard = out_fence();
 			for (node_t* p = pop_head; p != nullptr; p = p->next) {
 				p->for_each(std::forward<operation_t>(op));
 			}
@@ -895,6 +1052,7 @@ namespace grid {
 
 		template <typename operation_t>
 		void for_each(operation_t&& op) const noexcept(noexcept(std::declval<node_t>().for_each(std::forward<operation_t>(op)))) {
+			auto guard = out_fence();
 			for (node_t* p = pop_head; p != nullptr; p = p->next) {
 				p->for_each(std::forward<operation_t>(op));
 			}
@@ -902,6 +1060,7 @@ namespace grid {
 
 		template <typename operation_t>
 		void for_each_queue(operation_t&& op) noexcept(noexcept(op(std::declval<grid_queue_list_t>().pop_head))) {
+			auto guard = out_fence();
 			for (node_t* p = pop_head; p != nullptr; p = p->next) {
 				op(p);
 			}
@@ -909,6 +1068,7 @@ namespace grid {
 
 		template <typename operation_t>
 		void for_each_queue(operation_t&& op) const noexcept(noexcept(op(std::declval<grid_queue_list_t>().pop_head))) {
+			auto guard = out_fence();
 			for (const node_t* p = pop_head; p != nullptr; p = p->next) {
 				op(p);
 			}
@@ -1136,6 +1296,11 @@ namespace grid {
 			return const_iterator(p, p->end_index());
 		}
 
+		template <typename input_element_t>
+		element_t* emplace(input_element_t&& t) noexcept(noexcept(std::declval<node_t>().push(std::forward<input_element_t>(t)))) {
+			return push_head->push(std::forward<input_element_t>(t));
+		}
+
 	protected:
 		node_t* push_head = nullptr;
 		node_t* pop_head = nullptr; // pop_head is always prior to push_head.
@@ -1145,7 +1310,7 @@ namespace grid {
 
 	// frame adapter for grid_queue_list_t
 	template <typename grid_queue_t, size_t block_size = 4096, template <typename...> class allocator_t = std::allocator>
-	class grid_queue_frame_t {
+	class grid_queue_frame_t : enable_in_out_fence_t<> {
 	public:
 		grid_queue_frame_t(grid_queue_t& q) noexcept : queue(q), barrier(q.end()) {}
 
@@ -1174,15 +1339,18 @@ namespace grid {
 
 		template <typename... args_t>
 		void push(args_t&&... args) {
+			auto guard = in_fence();
 			queue.push(std::forward<args_t>(args)...);
 		}
 
 		template <typename iterator_t>
 		iterator_t pop(iterator_t from, iterator_t to) noexcept {
+			auto guard = out_fence();
 			return queue.pop(from, to);
 		}
 
 		bool acquire() noexcept(noexcept(std::declval<grid_queue_t>().pop(1))) {
+			auto guard = out_fence();
 			queue.pop(barrier - begin());
 
 			if (!frames.empty()) {
@@ -1195,6 +1363,7 @@ namespace grid {
 		}
 
 		void release() noexcept(noexcept(grid_queue_list_t<iterator, block_size>().push(std::declval<iterator>()))) {
+			auto guard = in_fence();
 			frames.push(queue.end());
 		}
 
@@ -1232,6 +1401,9 @@ namespace grid {
 		if (begin == end) return end;
 
 		typename std::decay<decltype(*begin)>::type element(std::forward<value_t>(value));
+		iterator_t ip = end;
+		if (pred(*--ip, element)) return end; // fast path for inserting at end
+
 		iterator_t it = std::lower_bound(begin, end, element, pred);
 		return it != end && !pred(std::move(element), *it) ? it : end;
 	}
@@ -1241,6 +1413,9 @@ namespace grid {
 		if (begin == end) return end;
 
 		typename std::decay<decltype(*begin)>::type element(std::forward<value_t>(value));
+		iterator_t ip = end;
+		if (*--ip < element) return end; // fast path for inserting at end
+
 		iterator_t it = std::lower_bound(begin, end, element);
 		return it != end && !(std::move(element) < *it) ? it : end;
 	}
