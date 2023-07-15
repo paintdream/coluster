@@ -1,0 +1,70 @@
+// LuaBridge.h
+// PaintDream (paintdream@paintdream.com)
+// 2023-07-02
+//
+
+#pragma once
+
+#include "../../../src/Coluster.h"
+
+#ifdef LUABRIDGE_EXPORT
+	#ifdef __GNUC__
+		#define LUABRIDGE_API __attribute__ ((visibility ("default")))
+	#else
+		#define LUABRIDGE_API __declspec(dllexport) // Note: actually gcc seems to also supports this syntax.
+	#endif
+#else
+	#ifdef __GNUC__
+		#define LUABRIDGE_API __attribute__ ((visibility ("default")))
+	#else
+		#define LUABRIDGE_API __declspec(dllimport) // Note: actually gcc seems to also supports this syntax.
+	#endif
+#endif
+
+namespace coluster {
+	class LuaBridge : protected Warp {
+	public:
+		LuaBridge(AsyncWorker& asyncWorker);
+		~LuaBridge() noexcept;
+
+		Warp& GetWarp() noexcept { return *this; }
+
+		class Object {
+		public:
+			Object(LuaBridge& bridge, Ref&& r) noexcept;
+			~Object() noexcept;
+
+			Ref& GetRef() noexcept { return ref; }
+
+		protected:
+			LuaBridge& bridge;
+			Ref ref;
+		};
+
+		struct StackIndex {
+			lua_State* dataStack;
+			int index = 0;
+		};
+
+		Coroutine<RefPtr<Object>> Get(LuaState lua, std::string_view name);
+		Coroutine<RefPtr<Object>> Load(LuaState lua, std::string_view code);
+		Coroutine<StackIndex> Call(LuaState lua, Required<Object*> callable, StackIndex stackIndex);
+		void lua_initialize(LuaState lua, int index);
+		void lua_finalize(LuaState lua, int index);
+		static void lua_registar(LuaState lua);
+
+	protected:
+		void QueueDeleteObject(Ref&& object);
+
+	protected:
+		Ref objectTypeRef;
+		std::atomic<size_t> deletingObjectRoutineState = queue_state_idle;
+		QueueList<Ref> deletingObjects;
+
+	protected:
+		lua_State* state;
+		lua_State* dataExchangeStack;
+		Ref dataExchangeRef;
+	};
+}
+

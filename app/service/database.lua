@@ -1,0 +1,21 @@
+local Database = {}
+Database.__index = Database
+
+function Database.New(coluster, services)
+	local instance = {}
+	setmetatable(instance, Database)
+	local import = require("util/import")
+
+	instance.object = require("database").create()
+	instance.types = import.FetchTypes(instance.object)
+	return instance
+end
+
+function Database:Reload(coluster, services)
+end
+
+function Database:Delete(coluster, services)
+end
+
+return Database
+
