@@ -1,4 +1,4 @@
-// PipelineCommon.h
+// Coluster.h
 // PaintDream (paintdream@paintdream.com)
 // 2022-12-31
 //
@@ -8,6 +8,7 @@
 #include <cassert>
 #include <span>
 #include <string>
+
 #define lua_assert assert
 #ifdef _MSC_VER
 #pragma warning(disable:4201)
@@ -16,25 +17,11 @@
 #pragma warning(disable:4127)
 #pragma warning(disable:4100)
 #pragma warning(disable:4702)
-#pragma warning(disable:4910)
 #endif
 
 #include "../ref/iris/src/iris_coroutine.h"
 #include "../ref/iris/src/iris_buffer.h"
 #include "../ref/iris/src/iris_lua.h"
-
-/*
-#ifdef __GNUC__
-	#define MODULE_IMPORT __attribute__ ((visibility ("default")))
-	#define MODULE_EXPORT __attribute__ ((visibility ("default")))
-	#define EXTERN_IMPORT extern
-	#define EXTERN_EXPORT extern
-#else
-	#define MODULE_IMPORT __declspec(dllimport) // Note: actually gcc seems to also supports this syntax.
-	#define MODULE_EXPORT __declspec(dllexport) // Note: actually gcc seems to also supports this syntax.
-	#define EXTERN_IMPORT
-	#define EXTERN_EXPORT
-#endif*/
 
 #ifdef COLUSTER_EXPORT
 	#ifdef __GNUC__
@@ -106,14 +93,8 @@ namespace coluster {
 		struct SwitchWarp : iris::iris_switch_t<Warp> {
 			using Base = iris::iris_switch_t<Warp>;
 			COLUSTER_API explicit SwitchWarp(Warp* target, Warp* other) noexcept;
-			COLUSTER_API bool await_ready() const noexcept {
-				return Base::await_ready();
-			}
-
-			COLUSTER_API void await_suspend(std::coroutine_handle<> handle) {
-				return Base::await_suspend(handle);
-			}
-
+			COLUSTER_API bool await_ready() const noexcept;
+			COLUSTER_API void await_suspend(std::coroutine_handle<> handle);
 			COLUSTER_API Warp* await_resume() const noexcept;
 
 		protected:
@@ -121,11 +102,10 @@ namespace coluster {
 			Warp* luaWarp;
 		};
 
-
 		COLUSTER_API static Warp* get_current_warp() noexcept;
 		COLUSTER_API AsyncWorker& get_async_worker() noexcept;
 		COLUSTER_API static SwitchWarp Switch(Warp* target, Warp* other = nullptr) noexcept;
-		COLUSTER_API explicit Warp(AsyncWorker& asyncWorker) : Base(asyncWorker) {}
+		COLUSTER_API explicit Warp(AsyncWorker& asyncWorker) : Base(asyncWorker) { assert(!asyncWorker.is_terminated()); }
 		COLUSTER_API void BindLuaCoroutine(void* address) noexcept;
 		COLUSTER_API void UnbindLuaCoroutine() noexcept;
 		COLUSTER_API void BindLuaRoot(lua_State* L) noexcept;

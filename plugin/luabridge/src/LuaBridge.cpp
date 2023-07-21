@@ -28,6 +28,7 @@ namespace coluster {
 
 	LuaBridge::~LuaBridge() noexcept {
 		assert(dataExchangeStack == nullptr);
+		GetWarp().join();
 		lua_close(state);
 	}
 
@@ -42,7 +43,7 @@ namespace coluster {
 		deletingObjects.push(std::move(ref));
 
 		if (deletingObjectRoutineState.exchange(queue_state_pending, std::memory_order_release) == queue_state_idle) {
-			GetWarp().queue_routine([this]() {
+			GetWarp().queue_routine_post([this]() {
 				LuaState target(state);
 				size_t expected;
 				do {

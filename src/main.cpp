@@ -9,7 +9,6 @@ public:
 		Status_Ready,
 		Status_Running,
 		Status_Stopping,
-		Status_Stopped
 	};
 
 	// Lua stubs
@@ -20,34 +19,58 @@ public:
 	static void LuaHook(lua_State* L, lua_Debug* ar);
 
 	// Methods
-	void Initialize(LuaState lua, size_t threadCount);
 	std::string_view GetStatus() const noexcept;
-	bool Start(LuaState lua, Ref&& startRoutine, Ref&& finalizeRoutine);
+	bool Start(LuaState lua, size_t threadCount);
+	bool Join(LuaState lua, Ref&& finalizer, bool enableConsole);
+	bool Post(LuaState lua, Ref&& callback);
+	bool Poll(bool pollAsyncTasks);
 	bool Stop();
+	static size_t GetHardwareConcurrency() noexcept;
+	size_t GetWorkerThreadCount() const noexcept;
+	bool IsMainThread() const noexcept;
 
 protected:
-	// lua tty functions and polling
-	bool LoopOnMain(LuaState lua, Ref&& startRoutine, Ref&& finalizeRoutine, size_t mainThreadIndex);
-	void AcquireWarpOnMain(Warp& warp);
-	void ReleaseWarpOnMain(Warp& warp);
-	void doREPL(Warp& scriptWarp, lua_State* L);
-	int pushline(Warp& scriptWarp, lua_State* L, int firstline);
-	int multiline(Warp& scriptWarp, lua_State* L);
-	int loadline(Warp& scriptWarp, lua_State* L);
+	void AcquireWarp();
+	void ReleaseWarp();
+	void doREPL(lua_State* L);
+	int pushline(lua_State* L, int firstline);
+	int multiline(lua_State* L);
+	int loadline(lua_State* L);
 
 protected:
 	AsyncWorker asyncWorker; // worker is unique
+	LuaState cothread;
+	Ref cothreadRef;
+	std::unique_ptr<Warp> scriptWarp;
+	size_t mainThreadIndex = ~size_t(0);
 	std::atomic<Status> workerStatus = Status_Ready;
 };
 
-Coluster::Coluster() {}
+Coluster::Coluster() : cothread(nullptr) {}
 
 // Lua stubs
 void Coluster::lua_registar(LuaState lua) {
-	lua.define<&Coluster::Initialize>("Initialize");
 	lua.define<&Coluster::Start>("Start");
+	lua.define<&Coluster::Join>("Join");
+	lua.define<&Coluster::Post>("Post");
+	lua.define<&Coluster::Poll>("Poll");
 	lua.define<&Coluster::Stop>("Stop");
 	lua.define<&Coluster::GetStatus>("GetStatus");
+	lua.define<&Coluster::GetHardwareConcurrency>("GetHardwareConcurrency");
+	lua.define<&Coluster::GetWorkerThreadCount>("GetWorkerThreadCount");
+	lua.define<&Coluster::IsMainThread>("IsMainThread");
+}
+
+bool Coluster::IsMainThread() const noexcept {
+	return asyncWorker.get_current_thread_index() == mainThreadIndex;
+}
+
+size_t Coluster::GetWorkerThreadCount() const noexcept {
+	return asyncWorker.get_thread_count();
+}
+
+size_t Coluster::GetHardwareConcurrency() noexcept {
+	return std::thread::hardware_concurrency();
 }
 
 void Coluster::LuaHook(lua_State* L, lua_Debug* ar) {
@@ -69,23 +92,24 @@ void Coluster::LuaHook(lua_State* L, lua_Debug* ar) {
 void Coluster::lua_initialize(LuaState lua, int index) {
 	lua_State* L = lua.get_state();
 	lua_sethook(L, LuaHook, LUA_MASKCALL | LUA_MASKRET, 0);
+	cothread = LuaState(lua_newthread(L));
+	cothreadRef = Ref(luaL_ref(L, LUA_REGISTRYINDEX));
 }
 
 void Coluster::lua_finalize(LuaState lua, int index) {
+	if (workerStatus.load(std::memory_order_acquire) == Status_Running) {
+		Stop();
+		Join(lua, Ref(), false);
+		assert(workerStatus.load(std::memory_order_acquire) == Status_Ready);
+	}
+
+	lua.deref(std::move(cothreadRef));
+	cothread = LuaState(nullptr);
 	lua_State* L = lua.get_state();
 	lua_sethook(L, LuaHook, 0, 0);
 }
 
 // Methods
-void Coluster::Initialize(LuaState lua, size_t threadCount) {
-	size_t count = std::thread::hardware_concurrency();
-	if (threadCount != 0) {
-		count = std::min(threadCount, count + Priority_Count); // at most hardware_concurrency + Priority_Count threads
-	}
-
-	count = std::max(count, iris::iris_verify_cast<size_t>(Priority_Count)); // at least Priority_Count threads
-	asyncWorker.resize(count);
-}
 
 std::string_view Coluster::GetStatus() const noexcept {
 	switch (workerStatus.load(std::memory_order_acquire)) {
@@ -95,24 +119,49 @@ std::string_view Coluster::GetStatus() const noexcept {
 			return "Running";
 		case Status_Stopping:
 			return "Stoping";
-		case Status_Stopped:
-			return "Stopped";
 	}
 
 	return "Unknown";
 }
 
-bool Coluster::Start(LuaState lua, Ref&& startRoutine, Ref&& finalizeRoutine) {
-	Status expected = Status_Ready;
-	auto guard = lua.ref_guard(startRoutine, finalizeRoutine);
-	if (asyncWorker.get_current_thread_index() != ~(size_t)0 || !startRoutine || !finalizeRoutine)
+bool Coluster::Start(LuaState lua, size_t threadCount) {
+	if (asyncWorker.get_current_thread_index() != ~(size_t)0)
 		return false;
 
+	size_t count = std::thread::hardware_concurrency();
+	if (threadCount != 0) {
+		count = std::min(threadCount, count + Priority_Count); // at most hardware_concurrency + Priority_Count threads
+	}
+
+	count = std::max(count, iris::iris_verify_cast<size_t>(Priority_Count)); // at least Priority_Count threads
+	asyncWorker.resize(count);
+
+	Status expected = Status_Ready;
 	if (workerStatus.compare_exchange_strong(expected, Status_Running, std::memory_order_relaxed)) {
-		size_t mainThreadIndex = asyncWorker.append(std::thread()); // for main thread polling
+		mainThreadIndex = asyncWorker.append(std::thread()); // for main thread polling
 		asyncWorker.start();
-		return LoopOnMain(lua, std::move(startRoutine), std::move(finalizeRoutine), mainThreadIndex);
+		asyncWorker.make_current(mainThreadIndex);
+		scriptWarp = std::make_unique<Warp>(asyncWorker);
+		scriptWarp->BindLuaRoot(cothread);
+		AcquireWarp();
+
+		return true;
 	} else {
+		return false;
+	}
+}
+
+bool Coluster::Post(LuaState lua, Ref&& callback) {
+	if (scriptWarp && callback) {
+		scriptWarp->queue_routine([this, callback = std::make_shared<Ref>(std::move(callback))]() mutable {
+			assert(cothread);
+			cothread.call<void>(std::move(*callback.get()));
+		});
+
+		return true;
+	} else {
+		lua.deref(std::move(callback));
+		fprintf(stderr, "[ERROR] Cannot Post new routines while coluster is not running!");
 		return false;
 	}
 }
@@ -212,7 +261,7 @@ static int docall(lua_State* L, int narg, int nres) {
 
 /*
 ** {==================================================================
-** Read-Eval-Print Loop (REPL)
+** Read-Eval-Print Join (REPL)
 ** ===================================================================
 */
 
@@ -321,14 +370,14 @@ static int incomplete(lua_State* L, int status) {
 /*
 ** Prompt the user, read a line, and push it into the Lua stack.
 */
-int Coluster::pushline(Warp& scriptWarp, lua_State* L, int firstline) {
+int Coluster::pushline(lua_State* L, int firstline) {
 	char buffer[LUA_MAXINPUT];
 	char* b = buffer;
 	size_t l;
 	const char* prmt = get_prompt(L, firstline);
-	ReleaseWarpOnMain(scriptWarp);
+	ReleaseWarp();
 	int readstatus = lua_readline(L, b, prmt);
-	AcquireWarpOnMain(scriptWarp);
+	AcquireWarp();
 	if (readstatus == 0)
 		return 0;  /* no input (prompt will be popped by caller) */
 	lua_pop(L, 1);  /* remove prompt */
@@ -365,12 +414,12 @@ static int addreturn(lua_State* L) {
 /*
 ** Read multiple lines until a complete Lua statement
 */
-int Coluster::multiline(Warp& scriptWarp, lua_State* L) {
+int Coluster::multiline(lua_State* L) {
 	for (;;) {  /* repeat until gets a complete statement */
 		size_t len;
 		const char* line = lua_tolstring(L, 1, &len);  /* get what it has */
 		int status = luaL_loadbuffer(L, line, len, "=stdin");  /* try it */
-		if (!incomplete(L, status) || !pushline(scriptWarp, L, 0)) {
+		if (!incomplete(L, status) || !pushline(L, 0)) {
 			lua_saveline(L, line);  /* keep history */
 			return status;  /* cannot or should not try to add continuation line */
 		}
@@ -387,13 +436,13 @@ int Coluster::multiline(Warp& scriptWarp, lua_State* L) {
 ** the final status of load/call with the resulting function (if any)
 ** in the top of the stack.
 */
-int Coluster::loadline(Warp& scriptWarp, lua_State* L) {
+int Coluster::loadline(lua_State* L) {
 	int status;
 	lua_settop(L, 0);
-	if (!pushline(scriptWarp, L, 1))
+	if (!pushline(L, 1))
 		return -1;  /* no input */
 	if ((status = addreturn(L)) != LUA_OK)  /* 'return ...' did not work? */
-		status = multiline(scriptWarp, L);  /* try as command, maybe with continuation lines */
+		status = multiline(L);  /* try as command, maybe with continuation lines */
 	lua_remove(L, 1);  /* remove line from the stack */
 	lua_assert(lua_gettop(L) == 1);
 	return status;
@@ -420,11 +469,11 @@ static void l_print(lua_State* L) {
 ** Do the REPL: repeatedly read (load) a line, evaluate (call) it, and
 ** print any results.
 */
-void Coluster::doREPL(Warp& scriptWarp, lua_State* L) {
+
+void Coluster::doREPL(lua_State* L) {
 	int status;
-	AcquireWarpOnMain(scriptWarp);
 	lua_initreadline(L);
-	while ((status = loadline(scriptWarp, L)) != -1) {
+	while ((status = loadline(L)) != -1) {
 		if (status == LUA_OK)
 			status = docall(L, 0, LUA_MULTRET);
 		if (status == LUA_OK) l_print(L);
@@ -433,72 +482,90 @@ void Coluster::doREPL(Warp& scriptWarp, lua_State* L) {
 	lua_settop(L, 0);  /* clear stack */
 	fprintf(stdout, "\n");
 	fflush(stdout);
-	ReleaseWarpOnMain(scriptWarp);
 }
 
-void Coluster::AcquireWarpOnMain(Warp& warp) {
-	while (!warp.preempt()) {
+void Coluster::AcquireWarp() {
+	while (!scriptWarp->preempt()) {
 		if (!asyncWorker.is_terminated()) {
 			asyncWorker.poll_delay(Priority_Highest, 20);
 		}
 	}
 }
 
-void Coluster::ReleaseWarpOnMain(Warp& warp) {
-	warp.yield();
+void Coluster::ReleaseWarp() {
+	scriptWarp->yield();
 }
 
-static std::vector<Coluster*> theLoopingInstances;
-static std::mutex theLoopingMutex;
+bool Coluster::Poll(bool pollAsyncTasks) {
+	if (!scriptWarp->join()) {
+		return !pollAsyncTasks || asyncWorker.poll(Priority_Highest);
+	} else {
+		return false;
+	}
+}
+
+static std::vector<Coluster*> theJoiningInstances;
+static std::mutex theJoiningMutex;
 
 static decltype(signal(SIGINT, SIG_IGN)) originalSignalHandler = nullptr;
 static void SignalHandler(int i) {
-	std::lock_guard<std::mutex> guard(theLoopingMutex);
+	std::lock_guard<std::mutex> guard(theJoiningMutex);
 	fprintf(stderr, "[SYSTEM] Ctrl-C pressed. Try to terminate all colusters ...\nIf you are in linux terminal, you may need another Ctrl-D to exit the program.\n");
 
-	for (auto&& instance : theLoopingInstances) {
+	for (auto&& instance : theJoiningInstances) {
 		instance->Stop();
 	}
 }
 
-bool Coluster::LoopOnMain(LuaState lua, Ref&& startRoutine, Ref&& finalizeRoutine, size_t mainThreadIndex) {
-	// Initialize script warp system on stack
-	Warp scriptWarp(asyncWorker);
-	scriptWarp.BindLuaRoot(lua.get_state());
-	scriptWarp.queue_routine_external([this, lua, r = std::make_shared<Ref>(std::move(startRoutine))]() mutable {
-		if (!lua.call<bool>(std::move(*r))) {
-			Stop();
-		}
-	});
-
-	asyncWorker.make_current(mainThreadIndex);
-	do {
-		std::lock_guard<std::mutex> guard(theLoopingMutex);
-		theLoopingInstances.emplace_back(this);
-	} while (false);
-
-	originalSignalHandler = ::signal(SIGINT, SignalHandler);
-
-	if (lua_stdin_is_tty()) {
-		doREPL(scriptWarp, lua.get_state());
-	} else {
-		// manually polling events
-		while (!asyncWorker.is_terminated()) {
-			asyncWorker.poll_delay(Priority_Highest, 20);
-		}
+bool Coluster::Join(LuaState lua, Ref&& finalizer, bool enableConsole) {
+	if (asyncWorker.get_current_thread_index() != mainThreadIndex) {
+		fprintf(stderr, "[ERROR] Coluster::Join() must be called in main thread.\n");
+		return false;
 	}
 
-	asyncWorker.join();
-	do {
-		std::lock_guard<std::mutex> guard(theLoopingMutex);
-		std::erase_if(theLoopingInstances, [this](auto&& p) { return p == this; });
-	} while (false);
+	if (workerStatus.load(std::memory_order_acquire) == Status_Stopping) {
+		asyncWorker.join();
+	} else {
+		do {
+			std::lock_guard<std::mutex> guard(theJoiningMutex);
+			theJoiningInstances.emplace_back(this);
+		} while (false);
 
-	AcquireWarpOnMain(scriptWarp);
-	lua.call<void>(std::move(finalizeRoutine));
-	ReleaseWarpOnMain(scriptWarp);
+		originalSignalHandler = ::signal(SIGINT, SignalHandler);
 
-	::signal(SIGINT, originalSignalHandler);
+		if (enableConsole && lua_stdin_is_tty()) {
+			doREPL(lua.get_state());
+		} else {
+			ReleaseWarp();
+
+			// manually polling events
+			while (!asyncWorker.is_terminated()) {
+				asyncWorker.poll_delay(Priority_Highest, 20);
+			}
+
+			AcquireWarp();
+		}
+
+		asyncWorker.join();
+		do {
+			std::lock_guard<std::mutex> guard(theJoiningMutex);
+			std::erase_if(theJoiningInstances, [this](auto&& p) { return p == this; });
+		} while (false);
+
+		::signal(SIGINT, originalSignalHandler);
+		assert(workerStatus.load(std::memory_order_acquire) == Status_Stopping);
+	}
+
+	if (finalizer) {
+		lua.call<void>(std::move(finalizer));
+	}
+
+	mainThreadIndex = ~size_t(0);
+	asyncWorker.make_current(mainThreadIndex);
+
+	ReleaseWarp();
+	scriptWarp.reset();
+	workerStatus.store(Status_Ready, std::memory_order_release);
 	return true;
 }
 

@@ -90,6 +90,14 @@ namespace coluster {
 		}
 	}
 
+	bool Warp::SwitchWarp::await_ready() const noexcept {
+		return Base::await_ready();
+	}
+
+	void Warp::SwitchWarp::await_suspend(std::coroutine_handle<> handle) {
+		return Base::await_suspend(handle);
+	}
+
 	Warp* Warp::SwitchWarp::await_resume() const noexcept {
 		CurrentLuaThread = luaState;
 		CurrentLuaWarp = luaWarp;
