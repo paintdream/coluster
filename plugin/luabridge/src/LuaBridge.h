@@ -46,8 +46,8 @@ namespace coluster {
 			int index = 0;
 		};
 
-		Coroutine<RefPtr<Object>> Get(LuaState lua, std::string_view name);
-		Coroutine<RefPtr<Object>> Load(LuaState lua, std::string_view code);
+		static Coroutine<RefPtr<Object>> Get(Required<RefPtr<LuaBridge>> self, LuaState lua, std::string_view name);
+		static Coroutine<RefPtr<Object>> Load(Required<RefPtr<LuaBridge>> self, LuaState lua, std::string_view code);
 		Coroutine<StackIndex> Call(LuaState lua, Required<Object*> callable, StackIndex stackIndex);
 		void lua_initialize(LuaState lua, int index);
 		void lua_finalize(LuaState lua, int index);
@@ -55,9 +55,9 @@ namespace coluster {
 
 	protected:
 		void QueueDeleteObject(Ref&& object);
+		Ref FetchObjectType(LuaState lua, Warp* warp, Ref&& self);
 
 	protected:
-		Ref objectTypeRef;
 		std::atomic<size_t> deletingObjectRoutineState = queue_state_idle;
 		QueueList<Ref> deletingObjects;
 

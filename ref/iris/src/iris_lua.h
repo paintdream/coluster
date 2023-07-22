@@ -423,6 +423,20 @@ namespace iris {
 			deref(L, std::move(r));
 		}
 
+		template <typename value_t, typename key_t>
+		value_t get_registry(key_t&& key) {
+			auto guard = write_fence();
+			lua_State* L = state;
+			stack_guard_t stack_guard(L);
+
+			push_variable(L, std::forward<key_t>(key));
+			lua_rawget(L, LUA_REGISTRYINDEX);
+			value_t value = get_variable<value_t>(L, -1);
+			lua_pop(L, 1);
+
+			return value;
+		}
+
 		template <typename value_t>
 		value_t get_global(std::string_view key) {
 			auto guard = write_fence();

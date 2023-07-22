@@ -1,5 +1,6 @@
 #include "Coluster.h"
 #include "../ref/iris/src/iris_common.inl" // implementation of memory management apis
+#include <chrono>
 #include <signal.h>
 using namespace coluster;
 
@@ -25,6 +26,8 @@ public:
 	bool Post(LuaState lua, Ref&& callback);
 	bool Poll(bool pollAsyncTasks);
 	bool Stop();
+	void Sleep(size_t milliseconds);
+
 	static size_t GetHardwareConcurrency() noexcept;
 	size_t GetWorkerThreadCount() const noexcept;
 	bool IsMainThread() const noexcept;
@@ -55,6 +58,7 @@ void Coluster::lua_registar(LuaState lua) {
 	lua.define<&Coluster::Post>("Post");
 	lua.define<&Coluster::Poll>("Poll");
 	lua.define<&Coluster::Stop>("Stop");
+	lua.define<&Coluster::Sleep>("Sleep");
 	lua.define<&Coluster::GetStatus>("GetStatus");
 	lua.define<&Coluster::GetHardwareConcurrency>("GetHardwareConcurrency");
 	lua.define<&Coluster::GetWorkerThreadCount>("GetWorkerThreadCount");
@@ -94,12 +98,21 @@ void Coluster::lua_initialize(LuaState lua, int index) {
 	lua_sethook(L, LuaHook, LUA_MASKCALL | LUA_MASKRET, 0);
 	cothread = LuaState(lua_newthread(L));
 	cothreadRef = Ref(luaL_ref(L, LUA_REGISTRYINDEX));
+
+	lua_pushvalue(lua.get_state(), index);
+	luaL_ref(L, LUA_REGISTRYINDEX);
 }
 
 void Coluster::lua_finalize(LuaState lua, int index) {
 	if (workerStatus.load(std::memory_order_acquire) == Status_Running) {
 		Stop();
 		Join(lua, Ref(), false);
+
+		while (asyncWorker.get_task_count() != 0) {
+			ReleaseWarp();
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			AcquireWarp();
+		}
 		assert(workerStatus.load(std::memory_order_acquire) == Status_Ready);
 	}
 
@@ -140,10 +153,10 @@ bool Coluster::Start(LuaState lua, size_t threadCount) {
 	if (workerStatus.compare_exchange_strong(expected, Status_Running, std::memory_order_relaxed)) {
 		mainThreadIndex = asyncWorker.append(std::thread()); // for main thread polling
 		asyncWorker.start();
-		asyncWorker.make_current(mainThreadIndex);
 		scriptWarp = std::make_unique<Warp>(asyncWorker);
 		scriptWarp->BindLuaRoot(cothread);
 		AcquireWarp();
+		asyncWorker.make_current(mainThreadIndex);
 
 		return true;
 	} else {
@@ -151,9 +164,13 @@ bool Coluster::Start(LuaState lua, size_t threadCount) {
 	}
 }
 
+void Coluster::Sleep(size_t milliseconds) {
+	std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+}
+
 bool Coluster::Post(LuaState lua, Ref&& callback) {
 	if (scriptWarp && callback) {
-		scriptWarp->queue_routine([this, callback = std::make_shared<Ref>(std::move(callback))]() mutable {
+		scriptWarp->queue_routine_post([this, callback = std::make_shared<Ref>(std::move(callback))]() mutable {
 			assert(cothread);
 			cothread.call<void>(std::move(*callback.get()));
 		});
@@ -562,10 +579,12 @@ bool Coluster::Join(LuaState lua, Ref&& finalizer, bool enableConsole) {
 
 	mainThreadIndex = ~size_t(0);
 	asyncWorker.make_current(mainThreadIndex);
-
 	ReleaseWarp();
+	scriptWarp->UnbindLuaRoot(lua.get_state());
 	scriptWarp.reset();
+
 	workerStatus.store(Status_Ready, std::memory_order_release);
+
 	return true;
 }
 

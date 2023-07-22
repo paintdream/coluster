@@ -28,7 +28,7 @@ namespace coluster {
 
 	LuaBridge::~LuaBridge() noexcept {
 		assert(dataExchangeStack == nullptr);
-		GetWarp().join();
+		UnbindLuaRoot(state);
 		lua_close(state);
 	}
 
@@ -59,20 +59,22 @@ namespace coluster {
 		}
 	}
 
-	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Get(LuaState lua, std::string_view name) {
-		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
-		LuaState target(state);
+	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Get(Required<RefPtr<LuaBridge>> s, LuaState lua, std::string_view name) {
+		LuaBridge* self = s.get();
+		Warp* currentWarp = co_await Warp::Switch(&self->GetWarp());
+		LuaState target(self->state);
 		Ref ref = target.get_global<Ref>(name);
 		co_await Warp::Switch(currentWarp);
-		co_return lua.make_object<Object>(objectTypeRef, *this, std::move(ref));
+		co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, std::move(ref));
 	}
 
-	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Load(LuaState lua, std::string_view code) {
-		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
-		LuaState target(state);
+	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Load(Required<RefPtr<LuaBridge>> s, LuaState lua, std::string_view code) {
+		LuaBridge* self = s.get();
+		Warp* currentWarp = co_await Warp::Switch(&self->GetWarp());
+		LuaState target(self->state);
 		Ref ref = target.load(code);
 		co_await Warp::Switch(currentWarp);
-		co_return lua.make_object<Object>(objectTypeRef, *this, std::move(ref));
+		co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, std::move(ref));
 	}
 
 	Coroutine<LuaBridge::StackIndex> LuaBridge::Call(LuaState lua, Required<Object*> callable, StackIndex parameters) {
@@ -113,17 +115,33 @@ namespace coluster {
 		co_return StackIndex { dataExchange, ret };
 	}
 
+	Ref LuaBridge::FetchObjectType(LuaState lua, Warp* warp, Ref&& self) {
+		assert(warp != nullptr);
+		assert(warp == Warp::get_current_warp());
+		assert(warp != this);
+
+		void* key = static_cast<void*>(&state);
+		Ref r = warp->GetCacheTable<Ref>(key);
+		if (r) {
+			lua.deref(std::move(self));
+			return r;
+		}
+
+		Ref objectTypeRef = lua.make_type<Object>("Object", std::ref(*this), Ref());
+		objectTypeRef.set(lua, "__host", std::move(self));
+		warp->SetCacheTable(key, objectTypeRef);
+		return objectTypeRef;
+	}
+
 	void LuaBridge::lua_initialize(LuaState lua, int index) {
-		objectTypeRef = lua.make_type<Object>("Object", std::ref(*this), Ref());
-		// add reference for this
-		objectTypeRef.set(lua, "__host", lua.native_get_variable<Ref>(index));
 		lua_State* L = lua.get_state();
+		LuaState::stack_guard_t guard(L);
 		dataExchangeStack = lua_newthread(L);
 		dataExchangeRef = Ref(luaL_ref(L, LUA_REGISTRYINDEX));
 	}
 
 	void LuaBridge::lua_finalize(LuaState lua, int index) {
-		lua.deref(std::move(objectTypeRef));
+		GetWarp().join();
 		lua.deref(std::move(dataExchangeRef));
 		dataExchangeStack = nullptr;
 	}

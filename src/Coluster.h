@@ -104,15 +104,77 @@ namespace coluster {
 
 		COLUSTER_API static Warp* get_current_warp() noexcept;
 		COLUSTER_API AsyncWorker& get_async_worker() noexcept;
+		COLUSTER_API static lua_State* GetCurrentLuaThread() noexcept;
+		COLUSTER_API static Warp* GetCurrentLuaWarp() noexcept;
 		COLUSTER_API static SwitchWarp Switch(Warp* target, Warp* other = nullptr) noexcept;
 		COLUSTER_API explicit Warp(AsyncWorker& asyncWorker) : Base(asyncWorker) { assert(!asyncWorker.is_terminated()); }
 		COLUSTER_API void BindLuaCoroutine(void* address) noexcept;
 		COLUSTER_API void UnbindLuaCoroutine() noexcept;
 		COLUSTER_API void BindLuaRoot(lua_State* L) noexcept;
+		COLUSTER_API void UnbindLuaRoot(lua_State* L) noexcept;
+
+		template <typename value_t, typename key_t>
+		void SetBindTable(key_t&& key, value_t&& value) noexcept {
+			SetTable(GetBindKey(), std::forward<key_t>(key), std::forward<value_t>(value));
+		}
+
+		template <typename value_t, typename key_t>
+		value_t GetBindTable(key_t&& key) {
+			return GetTable<value_t>(GetBindKey(), std::forward<key_t>(key));
+		}
+
+		template <typename value_t, typename key_t>
+		void SetCacheTable(key_t&& key, value_t&& value) noexcept {
+			SetTable(GetCacheKey(), std::forward<key_t>(key), std::forward<value_t>(value));
+		}
+
+		template <typename value_t, typename key_t>
+		value_t GetCacheTable(key_t&& key) {
+			return GetTable<value_t>(GetCacheKey(), std::forward<key_t>(key));
+		}
 
 	protected:
 		void ChainWait(Warp* target, Warp* other);
 		void ChainEnter(Warp* from);
+		void* GetCacheKey() noexcept {
+			return &hostState;
+		}
+
+		void* GetBindKey() noexcept {
+			assert(this != GetCacheKey());
+			return this;
+		}
+
+		template <typename value_t, typename key_t>
+		void SetTable(void* tableKey, key_t&& key, value_t&& value) noexcept {
+			lua_State* L = hostState;
+			LuaState lua(L);
+			LuaState::stack_guard_t guard(L);
+			lua_pushlightuserdata(L, tableKey);
+			lua_rawget(L, LUA_REGISTRYINDEX);
+
+			lua.native_push_variable(std::forward<key_t>(key));
+			lua.native_push_variable(std::forward<value_t>(value));
+			lua_rawset(L, -3);
+			lua_pop(L, 1);
+		}
+
+		template <typename value_t, typename key_t>
+		value_t GetTable(void* tableKey, key_t&& key) {
+			lua_State* L = hostState;
+			LuaState lua(L);
+			LuaState::stack_guard_t guard(L);
+			lua_pushlightuserdata(L, tableKey);
+			lua_rawget(L, LUA_REGISTRYINDEX);
+
+			lua.native_push_variable(std::forward<key_t>(key));
+			lua_rawget(L, -2);
+			value_t ret = lua.native_get_variable<value_t>(-1);
+			lua_pop(L, 2);
+			return ret;
+		}
+
+	protected:
 		lua_State* hostState = nullptr;
 	};
 
@@ -178,7 +240,8 @@ namespace coluster {
 	struct AutoAsyncWorker : LuaState::require_base_t {
 		struct Holder {
 			operator bool() const noexcept {
-				return Warp::get_current_warp() != nullptr;
+				Warp* warp = Warp::get_current_warp();
+				return warp != nullptr && !warp->get_async_worker().is_terminated();
 			}
 
 			operator AutoAsyncWorker () const noexcept {

@@ -32,6 +32,14 @@ namespace coluster {
 		return Base::get_async_worker();
 	}
 
+	lua_State* Warp::GetCurrentLuaThread() noexcept {
+		return CurrentLuaThread;
+	}
+
+	Warp* Warp::GetCurrentLuaWarp() noexcept {
+		return CurrentLuaWarp;
+	}
+
 	Warp::SwitchWarp Warp::Switch(Warp* target, Warp* other) noexcept {
 		return SwitchWarp(target, other);
 	}
@@ -39,16 +47,33 @@ namespace coluster {
 	void Warp::BindLuaRoot(lua_State* L) noexcept {
 		hostState = L;
 
-		// create monitor table
+		// create cache table
 		LuaState::stack_guard_t guard(L);
-		lua_pushlightuserdata(L, this);
+		lua_pushlightuserdata(L, GetCacheKey());
 		lua_newtable(L);
 		lua_newtable(L);
-		lua_pushliteral(L, "__mode");
-		lua_pushliteral(L, "k");
-		lua_settable(L, -3);
+		lua_pushliteral(L, "v");
+		lua_setfield(L, -2, "__mode");
 		lua_setmetatable(L, -2);
 		lua_rawset(L, LUA_REGISTRYINDEX);
+
+		// create bind table
+		lua_pushlightuserdata(L, GetBindKey());
+		lua_newtable(L);
+		lua_rawset(L, LUA_REGISTRYINDEX);
+	}
+
+	void Warp::UnbindLuaRoot(lua_State* L) noexcept {
+		LuaState::stack_guard_t guard(L);
+		lua_pushlightuserdata(L, GetBindKey());
+		lua_pushnil(L);
+		lua_rawset(L, LUA_REGISTRYINDEX);
+
+		lua_pushlightuserdata(L, GetCacheKey());
+		lua_pushnil(L);
+		lua_rawset(L, LUA_REGISTRYINDEX);
+
+		hostState = nullptr;
 	}
 
 	void Warp::ChainWait(Warp* target, Warp* other) {
