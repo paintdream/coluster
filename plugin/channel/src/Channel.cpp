@@ -8,7 +8,17 @@ namespace coluster {
 	Channel::Channel(AsyncWorker& asyncWorker) noexcept : Warp(asyncWorker) {}
 
 	Channel::~Channel() noexcept {
-		Close();
+		CloseImpl();
+	}
+
+	void Channel::CloseImpl() noexcept {
+		if (socket != -1) {
+			auto guard = write_fence();
+			::nn_close(socket);
+			socket = -1;
+		}
+
+		FreeRecvBuffer();
 	}
 
 	void Channel::lua_registar(LuaState lua) {
@@ -19,14 +29,9 @@ namespace coluster {
 		lua.define<&Channel::Recv>("Recv");
 	}
 
-	void Channel::Close() noexcept {
-		auto guard = write_fence();
-		if (socket != -1) {
-			::nn_close(socket);
-			socket = -1;
-		}
-
-		FreeRecvBuffer();
+	Coroutine<void> Channel::Close() noexcept {
+		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+		co_await Warp::Switch(currentWarp);
 	}
 
 	void Channel::FreeRecvBuffer() noexcept {
@@ -36,49 +41,57 @@ namespace coluster {
 		}
 	}
 
-	bool Channel::Send(std::string_view data) {
-		auto guard = write_fence();
+	Coroutine<bool> Channel::Send(std::string_view data) {
+		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+		bool ret = false;
 		if (socket != -1) {
-			if (::nn_send(socket, data.data(), data.length(), 0) >= 0) {
-				return true;
-			}
+			auto guard = write_fence();
+			ret = ::nn_send(socket, data.data(), data.length(), 0) >= 0;
 		}
 
-		return false;
+		co_await Warp::Switch(currentWarp);
+		co_return std::move(ret);
 	}
 
-	std::string_view Channel::Recv() {
-		auto guard = write_fence();
+	Coroutine<std::string_view> Channel::Recv() {
+		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
 		FreeRecvBuffer();
 
+		std::string_view ret;
 		if (socket != -1) {
+			auto guard = write_fence();
 			void* buffer = nullptr;
 			int bytes = ::nn_recv(socket, &buffer, NN_MSG, 0);
 			if (bytes >= 0) {
 				recvBuffer = buffer;
-				return std::string_view(reinterpret_cast<char*>(buffer), bytes);
+				ret = std::string_view(reinterpret_cast<char*>(buffer), bytes);
 			}
 		}
 
-		return {};
+		co_await Warp::Switch(currentWarp);
+		co_return std::move(ret);
 	}
 
-	bool Channel::Connect(std::string_view address) {
+	Coroutine<bool> Channel::Connect(std::string_view address) {
+		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+		bool ret = false;
 		if (socket != -1) {
-			if (::nn_connect(socket, address.data()) >= 0) {
-				return true;
-			}
+			auto guard = write_fence();
+			ret = ::nn_connect(socket, address.data()) >= 0;
 		}
 
-		return false;
+		co_await Warp::Switch(currentWarp);
+		co_return std::move(ret);
 	}
 
-	bool Channel::Setup(std::string_view protocol, std::string_view address) {
-		Close();
+	Coroutine<bool> Channel::Setup(std::string_view protocol, std::string_view address) {
+		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+		CloseImpl();
+
 		auto guard = write_fence();
 
 		// select protocol
-		int protoindex;
+		int protoindex = 0;
 		if (protocol == "PUB") {
 			protoindex = NN_PUB;
 		} else if (protocol == "SUB") {
@@ -92,20 +105,20 @@ namespace coluster {
 		} else if (protocol == "REP") {
 			protoindex = NN_REP;
 		} else {
-			// not a supported protocol
-			return false;
+			fprintf(stderr, "[ERROR] Channel::Setup() -> Unknown protocol %s\n", protocol.data());
 		}
 
-		socket = ::nn_socket(AF_SP, protoindex);
-		if (socket < 0) {
-			return false;
+		bool ret = false;
+		if (protoindex != 0) {
+			auto guard = write_fence();
+			socket = ::nn_socket(AF_SP, protoindex);
+			// address must be zero-terminated
+			if (socket >= 0 && ::nn_bind(socket, address.data()) >= 0) {
+				ret = true;
+			}
 		}
 
-		// address must be zero-terminated
-		if (::nn_bind(socket, address.data()) < 0) {
-			return false;
-		}
-
-		return true;
+		co_await Warp::Switch(currentWarp);
+		co_return std::move(ret);
 	}
 }

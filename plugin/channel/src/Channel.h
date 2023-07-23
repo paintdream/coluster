@@ -29,14 +29,15 @@ namespace coluster {
 
 		static void lua_registar(LuaState lua);
 		Warp& GetWarp() noexcept { return *this; }
-		bool Setup(std::string_view protocol, std::string_view address);
-		bool Connect(std::string_view address);
-		bool Send(std::string_view data);
-		std::string_view Recv();
-		void Close() noexcept;
+		Coroutine<bool> Setup(std::string_view protocol, std::string_view address);
+		Coroutine<bool> Connect(std::string_view address);
+		Coroutine<bool> Send(std::string_view data);
+		Coroutine<std::string_view> Recv();
+		Coroutine<void> Close() noexcept;
 
 	protected:
 		void FreeRecvBuffer() noexcept;
+		void CloseImpl() noexcept;
 
 	private:
 		int socket = -1;
