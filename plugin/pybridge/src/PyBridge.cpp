@@ -49,14 +49,11 @@ namespace coluster {
 		}
 	}
 
-	void PyBridge::lua_initialize(LuaState lua, int index) {
-		objectTypeRef = lua.make_type<Object>("Object", std::ref(*this), nullptr);
-		// add reference for this
-		objectTypeRef.set(lua, "__host", lua.native_get_variable<Ref>(index));
-	}
-
+	void PyBridge::lua_initialize(LuaState lua, int index) {}
 	void PyBridge::lua_finalize(LuaState lua, int index) {
-		lua.deref(std::move(objectTypeRef));
+		isFinalizing = true;
+		get_async_worker().Synchronize(lua, this);
+		isFinalizing = false;
 	}
 
 	void PyBridge::lua_registar(LuaState lua) {
@@ -65,8 +62,9 @@ namespace coluster {
 		lua.define<&PyBridge::Get>("Get");
 	}
 
-	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Get(LuaState lua, std::string_view name) {
-		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Get(Required<RefPtr<PyBridge>> s, LuaState lua, std::string_view name) {
+		PyBridge* self = s.get();
+		Warp* currentWarp = co_await Warp::Switch(&self->GetWarp());
 		PyObject* object = nullptr;
 		do {
 			PyGILGuard guard;
@@ -76,11 +74,16 @@ namespace coluster {
 		} while (false);
 
 		co_await Warp::Switch(currentWarp);
-		co_return lua.make_object<Object>(objectTypeRef, *this, object);
+		if (!self->isFinalizing) {
+			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, object);
+		} else {
+			co_return RefPtr<Object>();
+		}
 	}
 
-	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Import(LuaState lua, std::string_view name) {
-		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Import(Required<RefPtr<PyBridge>> s, LuaState lua, std::string_view name) {
+		PyBridge* self = s.get();
+		Warp* currentWarp = co_await Warp::Switch(&self->GetWarp());
 		PyObject* object = nullptr;
 		do {
 			PyGILGuard guard;
@@ -88,12 +91,17 @@ namespace coluster {
 		} while (false);
 
 		co_await Warp::Switch(currentWarp);
-		co_return lua.make_object<Object>(objectTypeRef, *this, object);
+		if (!self->isFinalizing) {
+			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, object);
+		} else {
+			co_return RefPtr<Object>();
+		}
 	}
 
-	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Call(LuaState lua, Required<Object*> callable, std::vector<Object*>&& params) {
+	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Call(Required<RefPtr<PyBridge>> s, LuaState lua, Required<Object*> callable, std::vector<Object*>&& params) {
+		PyBridge* self = s.get();
 		std::vector<Object*> parameters = std::move(params);
-		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(&self->GetWarp());
 
 		PyObject* object = nullptr;
 		do {
@@ -112,11 +120,16 @@ namespace coluster {
 		} while (false);
 
 		co_await Warp::Switch(currentWarp);
-		co_return lua.make_object<Object>(objectTypeRef, *this, object);
+		if (!self->isFinalizing) {
+			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, object);
+		} else {
+			co_return RefPtr<Object>();
+		}
 	}
 
-	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Pack(LuaState lua, Ref&& ref) {
-		Warp* currentWarp = co_await Warp::Switch(Warp::get_current_warp(), &GetWarp());
+	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Pack(Required<RefPtr<PyBridge>> s, LuaState lua, Ref&& ref) {
+		PyBridge* self = s.get();
+		Warp* currentWarp = co_await Warp::Switch(Warp::get_current_warp(), &self->GetWarp());
 
 		PyObject* object = nullptr;
 		do {
@@ -125,12 +138,34 @@ namespace coluster {
 			LuaState::stack_guard_t stackGuard(L);
 
 			lua_rawgeti(L, LUA_REGISTRYINDEX, ref.get());
-			object = PackObject(lua, -1);
+			object = self->PackObject(lua, -1);
 			lua_pop(L, 1);
 		} while (false);
 
 		co_await Warp::Switch(currentWarp);
-		co_return lua.make_object<Object>(objectTypeRef, *this, object);
+		if (!self->isFinalizing) {
+			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, object);
+		} else {
+			co_return RefPtr<Object>();
+		}
+	}
+	
+	Ref PyBridge::FetchObjectType(LuaState lua, Warp* warp, Ref&& self) {
+		assert(warp != nullptr);
+		assert(warp == Warp::get_current_warp());
+		assert(warp != this);
+
+		void* key = static_cast<void*>(this);
+		Ref r = warp->GetCacheTable<Ref>(key);
+		if (r) {
+			lua.deref(std::move(self));
+			return r;
+		}
+
+		Ref objectTypeRef = lua.make_type<Object>("Object", std::ref(*this), nullptr);
+		objectTypeRef.set(lua, "__host", std::move(self));
+		warp->SetCacheTable(key, objectTypeRef);
+		return objectTypeRef;
 	}
 
 	Coroutine<Ref> PyBridge::Unpack(LuaState lua, RefPtr<Object>&& object) {

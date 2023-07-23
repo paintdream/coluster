@@ -65,7 +65,14 @@ namespace coluster {
 		LuaState target(self->state);
 		Ref ref = target.get_global<Ref>(name);
 		co_await Warp::Switch(currentWarp);
-		co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, std::move(ref));
+
+		if (self->dataExchangeStack != nullptr) {
+			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, std::move(ref));
+		} else {
+			lua.deref(std::move(s.get()));
+			lua.deref(std::move(ref));
+			co_return RefPtr<Object>();
+		}
 	}
 
 	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Load(Required<RefPtr<LuaBridge>> s, LuaState lua, std::string_view code) {
@@ -74,7 +81,14 @@ namespace coluster {
 		LuaState target(self->state);
 		Ref ref = target.load(code);
 		co_await Warp::Switch(currentWarp);
-		co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, std::move(ref));
+
+		if (self->dataExchangeStack != nullptr) {
+			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, std::move(ref));
+		} else {
+			lua.deref(std::move(s.get()));
+			lua.deref(std::move(ref));
+			co_return RefPtr<Object>();
+		}
 	}
 
 	Coroutine<LuaBridge::StackIndex> LuaBridge::Call(LuaState lua, Required<Object*> callable, StackIndex parameters) {
@@ -120,7 +134,7 @@ namespace coluster {
 		assert(warp == Warp::get_current_warp());
 		assert(warp != this);
 
-		void* key = static_cast<void*>(&state);
+		void* key = static_cast<void*>(this);
 		Ref r = warp->GetCacheTable<Ref>(key);
 		if (r) {
 			lua.deref(std::move(self));
@@ -141,9 +155,9 @@ namespace coluster {
 	}
 
 	void LuaBridge::lua_finalize(LuaState lua, int index) {
-		GetWarp().join();
-		lua.deref(std::move(dataExchangeRef));
 		dataExchangeStack = nullptr;
+		get_async_worker().Synchronize(lua, this);
+		lua.deref(std::move(dataExchangeRef));
 	}
 
 	void LuaBridge::lua_registar(LuaState lua) {

@@ -42,10 +42,10 @@ namespace coluster {
 			PyObject* object;
 		};
 
-		Coroutine<RefPtr<Object>> Get(LuaState lua, std::string_view name);
-		Coroutine<RefPtr<Object>> Call(LuaState lua, Required<Object*> callable, std::vector<Object*>&& parameters);
-		Coroutine<RefPtr<Object>> Import(LuaState lua, std::string_view name);
-		Coroutine<RefPtr<Object>> Pack(LuaState lua, Ref&& ref);
+		static Coroutine<RefPtr<Object>> Get(Required<RefPtr<PyBridge>> self, LuaState lua, std::string_view name);
+		static Coroutine<RefPtr<Object>> Call(Required<RefPtr<PyBridge>> self, LuaState lua, Required<Object*> callable, std::vector<Object*>&& parameters);
+		static Coroutine<RefPtr<Object>> Import(Required<RefPtr<PyBridge>> self, LuaState lua, std::string_view name);
+		static Coroutine<RefPtr<Object>> Pack(Required<RefPtr<PyBridge>> self, LuaState lua, Ref&& ref);
 		Coroutine<Ref> Unpack(LuaState lua, RefPtr<Object>&& object);
 		void lua_initialize(LuaState lua, int index);
 		void lua_finalize(LuaState lua, int index);
@@ -55,11 +55,12 @@ namespace coluster {
 		void QueueDeleteObject(PyObject* object);
 		PyObject* PackObject(LuaState lua, int index);
 		void UnpackObject(LuaState lua, PyObject* object);
+		Ref FetchObjectType(LuaState lua, Warp* warp, Ref&& self);
 
 	protected:
-		Ref objectTypeRef;
 		std::atomic<size_t> deletingObjectRoutineState = queue_state_idle;
 		QueueList<PyObject*> deletingObjects;
+		bool isFinalizing = false;
 	};
 }
 

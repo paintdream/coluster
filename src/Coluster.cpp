@@ -21,6 +21,20 @@ namespace coluster {
 		return memoryQuotaQueue;
 	}
 
+	void AsyncWorker::Synchronize(LuaState lua, Warp* warp) {
+		if (scriptWarp) {
+			assert(Warp::get_current_warp() == scriptWarp.get());
+			lua_State* L = lua.get_state();
+			while ((warp == nullptr || !warp->join()) || !scriptWarp->join() || poll()) {
+				scriptWarp->Release();
+				poll_delay(Priority_Count, 20);
+				scriptWarp->Acquire();
+			}
+		} else if (warp != nullptr) {
+			while (!warp->join()) {}
+		}
+	}
+
 	static thread_local lua_State* CurrentLuaThread = nullptr;
 	static thread_local Warp* CurrentLuaWarp = nullptr;
 

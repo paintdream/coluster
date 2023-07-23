@@ -81,6 +81,7 @@ namespace coluster {
 		AsyncWorker();
 
 		COLUSTER_API MemoryQuotaQueue& GetMemoryQuotaQueue() noexcept;
+		COLUSTER_API void Synchronize(LuaState lua, Warp* warp);
 		Warp* GetScriptWarp() const noexcept {
 			return scriptWarp.get();
 		}

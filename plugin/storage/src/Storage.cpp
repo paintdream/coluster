@@ -82,6 +82,14 @@ namespace coluster {
 #endif
 	}
 
+	void Storage::lua_initialize(LuaState lua, int index) {
+
+	}
+
+	void Storage::lua_finalize(LuaState lua, int index) {
+		asyncWorker.Synchronize(lua, nullptr);
+	}
+
 	void Storage::lua_registar(LuaState lua) {
 		lua.define<&Storage::TypeFile>("TypeFile");
 		lua.define<&Storage::MakeDirectory>("MakeDirectory");

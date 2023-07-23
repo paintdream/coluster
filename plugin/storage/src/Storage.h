@@ -67,6 +67,8 @@ namespace coluster {
 		~Storage() noexcept;
 
 		static void lua_registar(LuaState lua);
+		void lua_initialize(LuaState lua, int index);
+		void lua_finalize(LuaState lua, int index);
 		bool Initialize(std::string_view baseArchive);
 		void Uninitialize();
 

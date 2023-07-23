@@ -389,6 +389,7 @@ namespace coluster {
 	}
 
 	void Device::lua_finalize(LuaState lua, int index) {
+		get_async_worker().Synchronize(lua, this);
 		lua.deref(std::move(storage));
 	}
 
