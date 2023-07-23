@@ -36,7 +36,6 @@ namespace coluster {
 	}
 
 	static thread_local lua_State* CurrentLuaThread = nullptr;
-	static thread_local Warp* CurrentLuaWarp = nullptr;
 
 	Warp* Warp::get_current_warp() noexcept {
 		return static_cast<Warp*>(Base::get_current_warp());
@@ -48,10 +47,6 @@ namespace coluster {
 
 	lua_State* Warp::GetCurrentLuaThread() noexcept {
 		return CurrentLuaThread;
-	}
-
-	Warp* Warp::GetCurrentLuaWarp() noexcept {
-		return CurrentLuaWarp;
 	}
 
 	Warp::SwitchWarp Warp::Switch(Warp* target, Warp* other) noexcept {
@@ -100,7 +95,6 @@ namespace coluster {
 
 	void Warp::BindLuaCoroutine(void* address) noexcept {
 		assert(CurrentLuaThread == nullptr);
-		assert(CurrentLuaWarp == nullptr);
 		assert(hostState != nullptr);
 
 		lua_State* L = hostState;
@@ -112,12 +106,10 @@ namespace coluster {
 		lua_pop(L, 1);
 
 		CurrentLuaThread = T;
-		CurrentLuaWarp = this;
 	}
 
 	void Warp::UnbindLuaCoroutine() noexcept {
 		CurrentLuaThread = nullptr;
-		CurrentLuaWarp = nullptr;
 	}
 
 	void Warp::Acquire() {
@@ -134,9 +126,8 @@ namespace coluster {
 		yield();
 	}
 
-	Warp::SwitchWarp::SwitchWarp(Warp* target_warp, Warp* other_warp) noexcept : Base(target_warp, other_warp), luaState(CurrentLuaThread), luaWarp(CurrentLuaWarp) {
+	Warp::SwitchWarp::SwitchWarp(Warp* target_warp, Warp* other_warp) noexcept : Base(target_warp, other_warp), luaState(CurrentLuaThread) {
 		CurrentLuaThread = nullptr;
-		CurrentLuaWarp = nullptr;
 
 		if (Base::source != nullptr) {
 			Base::source->ChainWait(Base::target, Base::other);
@@ -153,7 +144,6 @@ namespace coluster {
 
 	Warp* Warp::SwitchWarp::await_resume() const noexcept {
 		CurrentLuaThread = luaState;
-		CurrentLuaWarp = luaWarp;
 		Warp* ret = Base::await_resume();
 
 		if (Base::target != nullptr) {

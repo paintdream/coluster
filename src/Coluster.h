@@ -104,13 +104,11 @@ namespace coluster {
 
 		protected:
 			lua_State* luaState;
-			Warp* luaWarp;
 		};
 
 		COLUSTER_API static Warp* get_current_warp() noexcept;
 		COLUSTER_API AsyncWorker& get_async_worker() noexcept;
 		COLUSTER_API static lua_State* GetCurrentLuaThread() noexcept;
-		COLUSTER_API static Warp* GetCurrentLuaWarp() noexcept;
 		COLUSTER_API static SwitchWarp Switch(Warp* target, Warp* other = nullptr) noexcept;
 		COLUSTER_API explicit Warp(AsyncWorker& asyncWorker) : Base(asyncWorker) { assert(!asyncWorker.is_terminated()); }
 		COLUSTER_API void BindLuaCoroutine(void* address) noexcept;
