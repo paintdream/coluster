@@ -81,8 +81,12 @@ namespace coluster {
 		AsyncWorker();
 
 		COLUSTER_API MemoryQuotaQueue& GetMemoryQuotaQueue() noexcept;
+		Warp* GetScriptWarp() const noexcept {
+			return scriptWarp.get();
+		}
 
 	protected:
+		std::unique_ptr<Warp> scriptWarp;
 		MemoryQuota memoryQuota;
 		MemoryQuotaQueue memoryQuotaQueue;
 	};
@@ -112,6 +116,8 @@ namespace coluster {
 		COLUSTER_API void UnbindLuaCoroutine() noexcept;
 		COLUSTER_API void BindLuaRoot(lua_State* L) noexcept;
 		COLUSTER_API void UnbindLuaRoot(lua_State* L) noexcept;
+		COLUSTER_API void Acquire();
+		COLUSTER_API void Release();
 
 		template <typename value_t, typename key_t>
 		void SetBindTable(key_t&& key, value_t&& value) noexcept {

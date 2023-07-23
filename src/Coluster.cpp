@@ -106,6 +106,20 @@ namespace coluster {
 		CurrentLuaWarp = nullptr;
 	}
 
+	void Warp::Acquire() {
+		while (!preempt()) {
+			if (!get_async_worker().is_terminated()) {
+				get_async_worker().poll_delay(Priority_Highest, 20);
+			} else {
+				std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			}
+		}
+	}
+
+	void Warp::Release() {
+		yield();
+	}
+
 	Warp::SwitchWarp::SwitchWarp(Warp* target_warp, Warp* other_warp) noexcept : Base(target_warp, other_warp), luaState(CurrentLuaThread), luaWarp(CurrentLuaWarp) {
 		CurrentLuaThread = nullptr;
 		CurrentLuaWarp = nullptr;
