@@ -49,8 +49,12 @@ namespace coluster {
 		return CurrentLuaThread;
 	}
 
-	Warp::SwitchWarp Warp::Switch(Warp* target, Warp* other) noexcept {
-		return SwitchWarp(target, other);
+	void Warp::SetCurrentLuaThread(lua_State* L) noexcept {
+		CurrentLuaThread = L;
+	}
+
+	Warp::SwitchWarp Warp::Switch(const std::source_location& source, Warp* target, Warp* other) noexcept {
+		return SwitchWarp(source, target, other);
 	}
 
 	void Warp::BindLuaRoot(lua_State* L) noexcept {
@@ -85,12 +89,26 @@ namespace coluster {
 		hostState = nullptr;
 	}
 
-	void Warp::ChainWait(Warp* target, Warp* other) {
-		// printf("$> Warp %p is waiting for Warp(s): %p and %p\n", this, target, other);
+	void Warp::ChainWait(const std::source_location& source, Warp* from, Warp* target) {
+		/*
+		if (from != target) {
+			printf("$> Warp %p is waiting for Warp: %p\n", from, target);
+			printf("$> Source file: %s:%d\n", source.file_name(), source.line());
+			lua_State* L = CurrentLuaThread;
+			if (L != nullptr) {
+				LuaState::stack_guard_t guard(L);
+				luaL_traceback(L, L, "$> ", 0);
+				printf("%s\n", lua_tostring(L, -1));
+				lua_pop(L, 1);
+			}
+		}*/
 	}
 
-	void Warp::ChainEnter(Warp* from) {
-		// printf("$> Warp %p is entered from Warp: %p\n", this, from);
+	void Warp::ChainEnter(Warp* from, Warp* target) {
+		/*
+		if (from != target) {
+			printf("$> Warp %p is entered from Warp: %p\n", from, target);
+		}*/
 	}
 
 	void Warp::BindLuaCoroutine(void* address) noexcept {
@@ -126,12 +144,14 @@ namespace coluster {
 		yield();
 	}
 
-	Warp::SwitchWarp::SwitchWarp(Warp* target_warp, Warp* other_warp) noexcept : Base(target_warp, other_warp), luaState(CurrentLuaThread) {
-		CurrentLuaThread = nullptr;
+	Warp::SwitchWarp::SwitchWarp(const std::source_location& source, Warp* target_warp, Warp* other_warp) noexcept : Base(target_warp, other_warp), luaState(CurrentLuaThread) {
+		Warp::ChainWait(source, Base::source, Base::target != nullptr ? Base::target : Base::other);
 
-		if (Base::source != nullptr) {
-			Base::source->ChainWait(Base::target, Base::other);
+		if (Base::target != Base::other && Base::target != nullptr && Base::other != nullptr) {
+			Warp::ChainWait(source, Base::source, Base::other);
 		}
+
+		CurrentLuaThread = nullptr;
 	}
 
 	bool Warp::SwitchWarp::await_ready() const noexcept {
@@ -145,13 +165,12 @@ namespace coluster {
 	Warp* Warp::SwitchWarp::await_resume() const noexcept {
 		CurrentLuaThread = luaState;
 		Warp* ret = Base::await_resume();
+		assert(ret == Base::source);
 
-		if (Base::target != nullptr) {
-			Base::target->ChainEnter(ret);
-		}
+		Warp::ChainEnter(Base::source, Base::target != nullptr ? Base::target : Base::other);
 
-		if (Base::other != nullptr) {
-			Base::other->ChainEnter(ret);
+		if (Base::target != Base::other && Base::target != nullptr && Base::other != nullptr) {
+			Warp::ChainEnter(Base::source, Base::other);
 		}
 
 		return ret;

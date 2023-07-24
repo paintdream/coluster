@@ -64,7 +64,7 @@ namespace coluster {
 
 	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Get(Required<RefPtr<PyBridge>> s, LuaState lua, std::string_view name) {
 		PyBridge* self = s.get();
-		Warp* currentWarp = co_await Warp::Switch(&self->GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &self->GetWarp());
 		PyObject* object = nullptr;
 		do {
 			PyGILGuard guard;
@@ -73,7 +73,7 @@ namespace coluster {
 			Py_DecRef(globals);
 		} while (false);
 
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		if (!self->isFinalizing) {
 			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, object);
 		} else {
@@ -83,14 +83,14 @@ namespace coluster {
 
 	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Import(Required<RefPtr<PyBridge>> s, LuaState lua, std::string_view name) {
 		PyBridge* self = s.get();
-		Warp* currentWarp = co_await Warp::Switch(&self->GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &self->GetWarp());
 		PyObject* object = nullptr;
 		do {
 			PyGILGuard guard;
 			object = PyImport_AddModule(name.data());
 		} while (false);
 
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		if (!self->isFinalizing) {
 			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, object);
 		} else {
@@ -101,7 +101,7 @@ namespace coluster {
 	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Call(Required<RefPtr<PyBridge>> s, LuaState lua, Required<Object*> callable, std::vector<Object*>&& params) {
 		PyBridge* self = s.get();
 		std::vector<Object*> parameters = std::move(params);
-		Warp* currentWarp = co_await Warp::Switch(&self->GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &self->GetWarp());
 
 		PyObject* object = nullptr;
 		do {
@@ -119,7 +119,7 @@ namespace coluster {
 
 		} while (false);
 
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		if (!self->isFinalizing) {
 			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, object);
 		} else {
@@ -129,7 +129,7 @@ namespace coluster {
 
 	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Pack(Required<RefPtr<PyBridge>> s, LuaState lua, Ref&& ref) {
 		PyBridge* self = s.get();
-		Warp* currentWarp = co_await Warp::Switch(Warp::get_current_warp(), &self->GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), Warp::get_current_warp(), &self->GetWarp());
 
 		PyObject* object = nullptr;
 		do {
@@ -142,7 +142,7 @@ namespace coluster {
 			lua_pop(L, 1);
 		} while (false);
 
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		if (!self->isFinalizing) {
 			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, object);
 		} else {
@@ -169,7 +169,7 @@ namespace coluster {
 	}
 
 	Coroutine<Ref> PyBridge::Unpack(LuaState lua, RefPtr<Object>&& object) {
-		Warp* currentWarp = co_await Warp::Switch(Warp::get_current_warp(), &GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), Warp::get_current_warp(), &GetWarp());
 		lua_State* L = lua.get_state();
 
 		do {
@@ -177,7 +177,7 @@ namespace coluster {
 			UnpackObject(lua, object->GetPyObject());
 		} while (false);
 
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		co_return Ref(luaL_ref(L, LUA_REGISTRYINDEX));
 	}
 

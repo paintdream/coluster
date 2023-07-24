@@ -12,7 +12,10 @@
 namespace coluster {
 	static constexpr size_t MAX_DESCRIPTOR_COUNT = 1024u;
 
-	SubmitCompletion::SubmitCompletion(Device& dev, std::span<VkCommandBuffer> buffers) : iris_sync_t(dev.GetWarp().get_async_worker()), device(dev), commandBuffers(buffers), fence(VK_NULL_HANDLE) {}
+	SubmitCompletion::SubmitCompletion(const std::source_location& source, Device& dev, std::span<VkCommandBuffer> buffers) : iris_sync_t(dev.GetWarp().get_async_worker()), luaState(Warp::GetCurrentLuaThread()), device(dev), commandBuffers(buffers), fence(VK_NULL_HANDLE) {
+		Warp::ChainWait(source, nullptr, nullptr);
+		Warp::SetCurrentLuaThread(nullptr);
+	}
 
 	SubmitCompletion::~SubmitCompletion() {
 		Clear();
@@ -29,6 +32,11 @@ namespace coluster {
 		info.handle = std::move(handle);
 		info.warp = Warp::get_current_warp();
 		device.QueueSubmitCompletionOnAny(*this);
+	}
+
+	void SubmitCompletion::await_resume() noexcept {
+		Warp::SetCurrentLuaThread(luaState);
+		Warp::ChainEnter(nullptr, nullptr);
 	}
 
 	void SubmitCompletion::Resume() {
@@ -230,8 +238,8 @@ namespace coluster {
 		vkDestroyFence(device, fence, allocator);
 	}
 
-	SubmitCompletion Device::SubmitCmdBuffers(std::span<VkCommandBuffer> commandBuffers) {
-		return SubmitCompletion(*this, commandBuffers);
+	SubmitCompletion Device::SubmitCmdBuffers(const std::source_location& source, std::span<VkCommandBuffer> commandBuffers) {
+		return SubmitCompletion(source, *this, commandBuffers);
 	}
 
 	void Device::QueueSubmitCompletionOnAny(SubmitCompletion& completion) {

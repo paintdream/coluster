@@ -123,7 +123,7 @@ namespace coluster {
 			vmaFlushAllocation(device.GetVmaAllocator(), uploadBufferAllocation, 0, size);
 			vmaUnmapMemory(device.GetVmaAllocator(), uploadBufferAllocation);
 
-			Warp* currentWarp = co_await Warp::Switch(&cmdBuffer.get()->GetWarp());
+			Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &cmdBuffer.get()->GetWarp());
 			// Copy buffer to image
 			VkImageMemoryBarrier copyBarrier = {};
 			copyBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -167,7 +167,7 @@ namespace coluster {
 			currentLayout = useBarrier.newLayout;
 
 			co_await cmdBuffer.get()->Submit(lua);
-			co_await Warp::Switch(currentWarp);
+			co_await Warp::Switch(std::source_location::current(), currentWarp);
 
 			vmaDestroyBuffer(device.GetVmaAllocator(), uploadBuffer, uploadBufferAllocation);
 
@@ -201,7 +201,7 @@ namespace coluster {
 			VmaAllocation downloadBufferAllocation;
 			device.Verify("create buffer", vmaCreateBuffer(device.GetVmaAllocator(), &bufferInfo, &vmaAllocInfo, &downloadBuffer, &downloadBufferAllocation, nullptr));
 
-			Warp* currentWarp = co_await Warp::Switch(&cmdBuffer.get()->GetWarp());
+			Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &cmdBuffer.get()->GetWarp());
 			// require both host memory and device memory
 			auto downloadQuota = co_await device.GetAsyncWorker().GetMemoryQuotaQueue().guard({ 0, size });
 
@@ -256,7 +256,7 @@ namespace coluster {
 			vmaUnmapMemory(device.GetVmaAllocator(), downloadBufferAllocation);
 			vmaDestroyBuffer(device.GetVmaAllocator(), downloadBuffer, downloadBufferAllocation);
 
-			co_await Warp::Switch(currentWarp);
+			co_await Warp::Switch(std::source_location::current(), currentWarp);
 		}
 
 		co_return std::move(data);

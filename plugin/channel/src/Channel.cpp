@@ -30,8 +30,8 @@ namespace coluster {
 	}
 
 	Coroutine<void> Channel::Close() noexcept {
-		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
-		co_await Warp::Switch(currentWarp);
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 	}
 
 	void Channel::FreeRecvBuffer() noexcept {
@@ -42,19 +42,19 @@ namespace coluster {
 	}
 
 	Coroutine<bool> Channel::Send(std::string_view data) {
-		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		bool ret = false;
 		if (socket != -1) {
 			auto guard = write_fence();
 			ret = ::nn_send(socket, data.data(), data.length(), 0) >= 0;
 		}
 
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		co_return std::move(ret);
 	}
 
 	Coroutine<std::string_view> Channel::Recv() {
-		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		FreeRecvBuffer();
 
 		std::string_view ret;
@@ -68,24 +68,24 @@ namespace coluster {
 			}
 		}
 
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		co_return std::move(ret);
 	}
 
 	Coroutine<bool> Channel::Connect(std::string_view address) {
-		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		bool ret = false;
 		if (socket != -1) {
 			auto guard = write_fence();
 			ret = ::nn_connect(socket, address.data()) >= 0;
 		}
 
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		co_return std::move(ret);
 	}
 
 	Coroutine<bool> Channel::Setup(std::string_view protocol, std::string_view address) {
-		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		CloseImpl();
 
 		auto guard = write_fence();
@@ -118,7 +118,7 @@ namespace coluster {
 			}
 		}
 
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		co_return std::move(ret);
 	}
 }

@@ -11,14 +11,14 @@ namespace coluster {
 	}
 
 	Coroutine<bool> Database::Initialize(std::string_view path, bool createIfNotExist) {
-		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		if (handle != nullptr) {
 			fprintf(stderr, "[WARNING] Database already initialized!\n");
 			co_return false;
 		}
 
 		bool result = sqlite3_open_v2(path.data(), &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_NOMUTEX | (createIfNotExist ? SQLITE_OPEN_CREATE : 0), nullptr) == SQLITE_OK;
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		co_return std::move(result);
 	}
 
@@ -30,9 +30,9 @@ namespace coluster {
 	}
 
 	Coroutine<void> Database::Uninitialize() {
-		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		Close();
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 	}
 
 	void Database::lua_finalize(LuaState lua, int index) {
@@ -146,7 +146,7 @@ namespace coluster {
 		Ref postData(std::move(argPostData));
 		auto refGuard = lua.ref_guard(postData);
 
-		Warp* currentWarp = co_await Warp::Switch(Warp::get_current_warp(), &GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), Warp::get_current_warp(), &GetWarp());
 
 		if (sqlite3_prepare_v2(handle, sqlTemplate.data(), -1, &stmt, 0) == SQLITE_OK) {
 			if (postData) {
@@ -161,13 +161,13 @@ namespace coluster {
 						PostData(dataStack, stmt);
 
 						if (asyncPost) {
-							co_await Warp::Switch(&GetWarp());
+							co_await Warp::Switch(std::source_location::current(), &GetWarp());
 						}
 
 						int status = sqlite3_step(stmt);
 
 						if (asyncPost) {
-							co_await Warp::Switch(currentWarp, &GetWarp());
+							co_await Warp::Switch(std::source_location::current(), currentWarp, &GetWarp());
 						}
 
 						if (status == SQLITE_ROW) {
@@ -184,9 +184,9 @@ namespace coluster {
 
 				lua_pop(D, 1);
 			} else {
-				Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+				Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 				int status = sqlite3_step(stmt);
-				co_await Warp::Switch(currentWarp, &GetWarp());
+				co_await Warp::Switch(std::source_location::current(), currentWarp, &GetWarp());
 
 				if (status == SQLITE_ROW) {
 					WriteResult(dataStack, -2, 1, stmt);
@@ -200,7 +200,7 @@ namespace coluster {
 			fprintf(stderr, "[ERROR] Database::Execute() -> %s\n", sqlite3_errmsg(handle));
 		}
 
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		assert(lua_gettop(D) == 1);
 
 		lua_xmove(D, lua.get_state(), 1);

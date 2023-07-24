@@ -56,7 +56,7 @@ namespace coluster {
 			}
 
 			status = Status_Reading;
-			Warp* currentWarp = co_await Warp::Switch(static_cast<Warp*>(nullptr));
+			Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), static_cast<Warp*>(nullptr));
 			std::string_view data = co_await file.get()->Read(0, iris::iris_verify_cast<size_t>(size));
 			int width, height;
 			decoded = WebPDecodeRGBA(reinterpret_cast<const uint8_t*>(data.data()), data.size(), &width, &height);
@@ -73,7 +73,7 @@ namespace coluster {
 				fprintf(stderr, "[ERROR] Texture::Load() -> Decode failed!\n");
 			}
 
-			co_await Warp::Switch(currentWarp);
+			co_await Warp::Switch(std::source_location::current(), currentWarp);
 		}
 
 		co_return decoded != nullptr;
@@ -88,7 +88,7 @@ namespace coluster {
 			}
 			
 			status = Status_Writing;
-			Warp* currentWarp = co_await Warp::Switch(static_cast<Warp*>(nullptr));
+			Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), static_cast<Warp*>(nullptr));
 
 			uint8_t* output = nullptr;
 			size_t bytes = WebPEncodeLosslessRGBA(reinterpret_cast<uint8_t*>(buffer.data()), resolution.first, resolution.second, resolution.first * 4, &output);
@@ -96,7 +96,7 @@ namespace coluster {
 			WebPFree(output);
 
 			status = Status_Ready;
-			co_await Warp::Switch(currentWarp);
+			co_await Warp::Switch(std::source_location::current(), currentWarp);
 
 			ret = writeBytes == bytes;
 		}

@@ -12,13 +12,14 @@ namespace coluster {
 	class File;
 
 	struct FileCompletion : public iris::iris_sync_t<Warp, AsyncWorker> {
-		FileCompletion(File& f);
+		FileCompletion(const std::source_location& source, File& f);
 
 		constexpr bool await_ready() const noexcept { return false; }
-		constexpr void await_resume() noexcept {}
+		void await_resume() noexcept;
 		void await_suspend(CoroutineHandle<> handle);
 		void Resume();
 
+		lua_State* luaState;
 		File& file;
 		info_t info;
 	};

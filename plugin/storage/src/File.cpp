@@ -47,7 +47,7 @@ namespace coluster {
 		bool result = false;
 		if (auto guard = write_fence()) {
 			// go user space async io
-			Warp* currentWarp = co_await Warp::Switch(static_cast<Warp*>(nullptr));
+			Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), static_cast<Warp*>(nullptr));
 
 #ifdef _WIN32
 			DWORD dwMinSize;
@@ -72,7 +72,7 @@ namespace coluster {
 				result = true;
 			}
 #endif
-			co_await Warp::Switch(currentWarp);
+			co_await Warp::Switch(std::source_location::current(), currentWarp);
 		}
 
 		if (result) {
@@ -101,11 +101,20 @@ namespace coluster {
 #endif
 	}
 
-	FileCompletion::FileCompletion(File& f) : iris_sync_t<Warp, AsyncWorker>(f.GetStorage().GetAsyncWorker()), file(f) {}
+	FileCompletion::FileCompletion(const std::source_location& source, File& f) : iris_sync_t<Warp, AsyncWorker>(f.GetStorage().GetAsyncWorker()), luaState(Warp::GetCurrentLuaThread()), file(f) {
+		Warp::ChainWait(source, nullptr, nullptr);
+		Warp::SetCurrentLuaThread(nullptr);
+	}
+
 	void FileCompletion::await_suspend(CoroutineHandle<> handle) {
 		info.handle = std::move(handle);
 		info.warp = Warp::get_current_warp();
 		file.GetStorage().DispatchOperation();
+	}
+
+	void FileCompletion::await_resume() noexcept {
+		Warp::SetCurrentLuaThread(luaState);
+		Warp::ChainEnter(nullptr, nullptr);
 	}
 
 	void FileCompletion::Resume() {
@@ -138,7 +147,7 @@ namespace coluster {
 			status = Status_Reading;
 			if (!storage.IsSupportAsyncIO()) {
 				// go user space async io
-				Warp* currentWarp = co_await Warp::Switch(static_cast<Warp*>(nullptr));
+				Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), static_cast<Warp*>(nullptr));
 
 #ifdef _WIN32
 				if (fileHandle != nullptr) {
@@ -163,9 +172,9 @@ namespace coluster {
 					}
 				}
 #endif
-				co_await Warp::Switch(currentWarp);
+				co_await Warp::Switch(std::source_location::current(), currentWarp);
 			} else {
-				FileCompletion completion(*this);
+				FileCompletion completion(std::source_location::current(), *this);
 
 #ifdef _WIN32
 				if (fileHandle != nullptr) {
@@ -232,7 +241,7 @@ namespace coluster {
 				if (result.size() == length) {
 					Warp* currentWarp = Warp::get_current_warp();
 					co_await completion; // wait for io completion
-					co_await Warp::Switch(currentWarp);
+					co_await Warp::Switch(std::source_location::current(), currentWarp);
 				}
 			}
 		}
@@ -251,7 +260,7 @@ namespace coluster {
 		if (auto guard = write_fence()) {
 			if (!storage.IsSupportAsyncIO()) {
 				// go user space async io
-				Warp* currentWarp = co_await Warp::Switch(static_cast<Warp*>(nullptr));
+				Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), static_cast<Warp*>(nullptr));
 
 #ifdef _WIN32
 				if (fileHandle != nullptr) {
@@ -272,9 +281,9 @@ namespace coluster {
 					result = len;
 				}
 #endif
-				co_await Warp::Switch(currentWarp);
+				co_await Warp::Switch(std::source_location::current(), currentWarp);
 			} else {
-				FileCompletion completion(*this);
+				FileCompletion completion(std::source_location::current(), *this);
 #ifdef _WIN32
 				if (fileHandle != nullptr) {
 					size_t size = input.size();
@@ -343,7 +352,7 @@ namespace coluster {
 				if (result != 0) {
 					Warp* currentWarp = Warp::get_current_warp();
 					co_await completion; // wait for io completion
-					co_await Warp::Switch(currentWarp);
+					co_await Warp::Switch(std::source_location::current(), currentWarp);
 				}
 			}
 		}

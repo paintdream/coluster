@@ -77,7 +77,7 @@ namespace coluster {
 			vmaFlushAllocation(device.GetVmaAllocator(), uploadBufferAllocation, 0, size);
 			vmaUnmapMemory(device.GetVmaAllocator(), uploadBufferAllocation);
 
-			Warp* currentWarp = co_await Warp::Switch(&cmdBuffer.get()->GetWarp());
+			Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &cmdBuffer.get()->GetWarp());
 
 			VkBufferMemoryBarrier copyBarrier = {};
 			copyBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -112,7 +112,7 @@ namespace coluster {
 			co_await cmdBuffer.get()->Submit(lua);
 
 			vmaDestroyBuffer(GetDevice().GetVmaAllocator(), uploadBuffer, uploadBufferAllocation);
-			co_await Warp::Switch(currentWarp);
+			co_await Warp::Switch(std::source_location::current(), currentWarp);
 
 			// release staging part
 			memoryQuotaResource.release({0, size});
@@ -146,7 +146,7 @@ namespace coluster {
 			VmaAllocation downloadBufferAllocation;
 			device.Verify("create buffer", vmaCreateBuffer(device.GetVmaAllocator(), &bufferInfo, &vmaAllocInfo, &downloadBuffer, &downloadBufferAllocation, nullptr));
 
-			Warp* currentWarp = co_await Warp::Switch(&cmdBuffer.get()->GetWarp());
+			Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &cmdBuffer.get()->GetWarp());
 			auto downloadQuota = co_await device.GetAsyncWorker().GetMemoryQuotaQueue().guard({ 0, size }); 
 
 			VkBufferMemoryBarrier useBarrier = {};
@@ -181,7 +181,7 @@ namespace coluster {
 			vkCmdPipelineBarrier(cmdBuffer.get()->GetCommandBuffer(), VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0, nullptr, 1, &copyBarrier, 0, nullptr);
 
 			co_await cmdBuffer.get()->Submit(lua);
-			co_await Warp::Switch(currentWarp);
+			co_await Warp::Switch(std::source_location::current(), currentWarp);
 
 			data.resize(size);
 

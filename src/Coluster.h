@@ -8,6 +8,7 @@
 #include <cassert>
 #include <span>
 #include <string>
+#include <source_location>
 
 #define lua_assert assert
 #ifdef _MSC_VER
@@ -97,7 +98,7 @@ namespace coluster {
 		
 		struct SwitchWarp : iris::iris_switch_t<Warp> {
 			using Base = iris::iris_switch_t<Warp>;
-			COLUSTER_API explicit SwitchWarp(Warp* target, Warp* other) noexcept;
+			COLUSTER_API explicit SwitchWarp(const std::source_location& source, Warp* target, Warp* other) noexcept;
 			COLUSTER_API bool await_ready() const noexcept;
 			COLUSTER_API void await_suspend(std::coroutine_handle<> handle);
 			COLUSTER_API Warp* await_resume() const noexcept;
@@ -109,7 +110,8 @@ namespace coluster {
 		COLUSTER_API static Warp* get_current_warp() noexcept;
 		COLUSTER_API AsyncWorker& get_async_worker() noexcept;
 		COLUSTER_API static lua_State* GetCurrentLuaThread() noexcept;
-		COLUSTER_API static SwitchWarp Switch(Warp* target, Warp* other = nullptr) noexcept;
+		COLUSTER_API static void SetCurrentLuaThread(lua_State* L) noexcept;
+		COLUSTER_API static SwitchWarp Switch(const std::source_location& source, Warp* target, Warp* other = nullptr) noexcept;
 		COLUSTER_API explicit Warp(AsyncWorker& asyncWorker) : Base(asyncWorker) { assert(!asyncWorker.is_terminated()); }
 		COLUSTER_API void BindLuaCoroutine(void* address) noexcept;
 		COLUSTER_API void UnbindLuaCoroutine() noexcept;
@@ -138,9 +140,10 @@ namespace coluster {
 			return GetTable<value_t>(GetCacheKey(), std::forward<key_t>(key));
 		}
 
+		COLUSTER_API static void ChainWait(const std::source_location& source, Warp* from, Warp* target);
+		COLUSTER_API static void ChainEnter(Warp* from, Warp* target);
+
 	protected:
-		void ChainWait(Warp* target, Warp* other);
-		void ChainEnter(Warp* from);
 		void* GetCacheKey() noexcept {
 			return &hostState;
 		}

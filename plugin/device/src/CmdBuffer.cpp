@@ -4,7 +4,7 @@
 namespace coluster {
 	class CmdCompletion : public iris::iris_sync_t<Warp, AsyncWorker> {
 	public:
-		CmdCompletion(CmdBuffer& cmdBuffer);
+		CmdCompletion(const std::source_location& source, CmdBuffer& cmdBuffer);
 		~CmdCompletion();
 		CmdCompletion(const CmdCompletion&) = delete;
 		CmdCompletion(CmdCompletion&&) = delete;
@@ -12,14 +12,19 @@ namespace coluster {
 		// always suspended
 		constexpr bool await_ready() const noexcept { return false; }
 		void await_suspend(CoroutineHandle<> handle);
-		constexpr void await_resume() noexcept {}
+		void await_resume() noexcept;
 
 	protected:
+		lua_State* luaState;
 		CmdBuffer& cmdBuffer;
 		info_t info;
 	};
 
-	CmdCompletion::CmdCompletion(CmdBuffer& buffer) : iris_sync_t(buffer.GetWarp().get_async_worker()), cmdBuffer(buffer) {}
+	CmdCompletion::CmdCompletion(const std::source_location& source, CmdBuffer& buffer) : iris_sync_t(buffer.GetWarp().get_async_worker()), luaState(Warp::GetCurrentLuaThread()), cmdBuffer(buffer) {
+		Warp::ChainWait(source, nullptr, nullptr);
+		Warp::SetCurrentLuaThread(nullptr);
+	}
+
 	CmdCompletion::~CmdCompletion() {}
 
 	void CmdCompletion::await_suspend(CoroutineHandle<> handle) {
@@ -29,6 +34,11 @@ namespace coluster {
 		cmdBuffer.QueueCompletion([this](LuaState lua, CmdBuffer& cmdBuffer) {
 			dispatch(std::move(info));
 		});
+	}
+
+	void CmdCompletion::await_resume() noexcept {
+		Warp::SetCurrentLuaThread(luaState);
+		Warp::ChainEnter(nullptr, nullptr);
 	}
 
 	CmdBuffer::CmdBuffer(Device& dev) : DeviceObject(dev), Warp(dev.GetWarp().get_async_worker()) {
@@ -67,7 +77,7 @@ namespace coluster {
 	}
 
 	Coroutine<void> CmdBuffer::Submit(LuaState lua) {
-		Warp* currentWarp = co_await Warp::Switch(&GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		// already queued
 		while (true) {
 			if (submitState == SubmitState::Idle) {
@@ -78,17 +88,17 @@ namespace coluster {
 				Begin();
 
 				submitState = SubmitState::Queueing;
-				co_await device.SubmitCmdBuffers({ &commandBuffers[1], 1 });
+				co_await device.SubmitCmdBuffers(std::source_location::current(), { &commandBuffers[1], 1 });
 				submitState = SubmitState::Idle;
 				break;
 			} else {
 				// submitted command buffer busy, keep recording
-				co_await CmdCompletion(*this);
-				co_await Warp::Switch(&GetWarp());
+				co_await CmdCompletion(std::source_location::current(), *this);
+				co_await Warp::Switch(std::source_location::current(), &GetWarp());
 			}
 		}
 
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		Cleanup(lua);
 	}
 

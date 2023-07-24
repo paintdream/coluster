@@ -15,7 +15,7 @@ namespace coluster {
 	class Device;
 	class SubmitCompletion : public iris::iris_sync_t<Warp, AsyncWorker> {
 	public:
-		SubmitCompletion(Device& worker, std::span<VkCommandBuffer> commandBuffers);
+		SubmitCompletion(const std::source_location& source, Device& worker, std::span<VkCommandBuffer> commandBuffers);
 		~SubmitCompletion();
 		SubmitCompletion(const SubmitCompletion&) = delete;
 		SubmitCompletion(SubmitCompletion&&) = delete;
@@ -26,7 +26,7 @@ namespace coluster {
 		}
 
 		void await_suspend(CoroutineHandle<> handle);
-		constexpr void await_resume() noexcept {}
+		void await_resume() noexcept;
 
 		void Resume();
 		VkFence GetFence() const noexcept { return fence; }
@@ -37,6 +37,7 @@ namespace coluster {
 		void Clear();
 
 	protected:
+		lua_State* luaState;
 		Device& device;
 		std::span<VkCommandBuffer> commandBuffers;
 		VkFence fence;
@@ -74,7 +75,7 @@ namespace coluster {
 		void lua_finalize(LuaState lua, int index);
 
 		// SubmitCmdBuffers() can be called from any warp
-		SubmitCompletion SubmitCmdBuffers(std::span<VkCommandBuffer> commandBuffers);
+		SubmitCompletion SubmitCmdBuffers(const std::source_location& source, std::span<VkCommandBuffer> commandBuffers);
 		void Initialize(Required<RefPtr<Storage>> storage);
 
 		// Helper functions

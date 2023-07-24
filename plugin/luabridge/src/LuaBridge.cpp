@@ -61,10 +61,10 @@ namespace coluster {
 
 	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Get(Required<RefPtr<LuaBridge>> s, LuaState lua, std::string_view name) {
 		LuaBridge* self = s.get();
-		Warp* currentWarp = co_await Warp::Switch(&self->GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &self->GetWarp());
 		LuaState target(self->state);
 		Ref ref = target.get_global<Ref>(name);
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 
 		if (self->dataExchangeStack != nullptr) {
 			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, std::move(ref));
@@ -77,10 +77,10 @@ namespace coluster {
 
 	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Load(Required<RefPtr<LuaBridge>> s, LuaState lua, std::string_view code) {
 		LuaBridge* self = s.get();
-		Warp* currentWarp = co_await Warp::Switch(&self->GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &self->GetWarp());
 		LuaState target(self->state);
 		Ref ref = target.load(code);
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 
 		if (self->dataExchangeStack != nullptr) {
 			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, std::move(ref));
@@ -101,7 +101,7 @@ namespace coluster {
 		lua_settop(L, org);
 		LuaState dataExchange(D);
 
-		Warp* currentWarp = co_await Warp::Switch(Warp::get_current_warp(), &GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), Warp::get_current_warp(), &GetWarp());
 		LuaState target(lua_newthread(state));
 		Ref threadRef = Ref(luaL_ref(state, LUA_REGISTRYINDEX));
 
@@ -112,12 +112,12 @@ namespace coluster {
 		lua_pop(D, count);
 
 		// make async call
-		co_await Warp::Switch(&GetWarp());
+		co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		int ret = target.native_call(callable.get()->GetRef(), count);
 
 		if (ret != 0) {
 			// copy return values
-			co_await Warp::Switch(currentWarp, &GetWarp());
+			co_await Warp::Switch(std::source_location::current(), currentWarp, &GetWarp());
 			for (int i = ret; i > 0; i--) {
 				target.native_cross_transfer_variable<true>(dataExchange, -i);
 			}
@@ -125,7 +125,7 @@ namespace coluster {
 
 		target.deref(std::move(threadRef));
 
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		co_return StackIndex { dataExchange, ret };
 	}
 

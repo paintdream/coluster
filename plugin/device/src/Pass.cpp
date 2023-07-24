@@ -80,7 +80,7 @@ namespace coluster {
 			bufferBarriers.emplace_back(std::move(useBarrier));
 		}
 
-		Warp* currentWarp = co_await Warp::Switch(&cmdBuffer.get()->GetWarp());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &cmdBuffer.get()->GetWarp());
 
 		vkCmdPipelineBarrier(cmdBuffer.get()->GetCommandBuffer(), VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr,
 			iris::iris_verify_cast<uint32_t>(bufferBarriers.size()), bufferBarriers.data(), iris::iris_verify_cast<uint32_t>(imageBarriers.size()), imageBarriers.data());
@@ -109,7 +109,7 @@ namespace coluster {
 
 		// Do not wait here
 		// co_await cmdBuffer.get()->WaitCompletion();
-		co_await Warp::Switch(currentWarp);
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
 
 		status = Status_Completed;
 		co_return true; // done!
