@@ -35,7 +35,7 @@ namespace coluster {
 		}
 	}
 
-	static thread_local lua_State* CurrentLuaThread = nullptr;
+	static thread_local void* CurrentCoroutineAddress = nullptr;
 
 	Warp* Warp::get_current_warp() noexcept {
 		return static_cast<Warp*>(Base::get_current_warp());
@@ -43,14 +43,6 @@ namespace coluster {
 
 	AsyncWorker& Warp::get_async_worker() noexcept {
 		return Base::get_async_worker();
-	}
-
-	lua_State* Warp::GetCurrentLuaThread() noexcept {
-		return CurrentLuaThread;
-	}
-
-	void Warp::SetCurrentLuaThread(lua_State* L) noexcept {
-		CurrentLuaThread = L;
 	}
 
 	Warp::SwitchWarp Warp::Switch(const std::source_location& source, Warp* target, Warp* other) noexcept {
@@ -62,72 +54,76 @@ namespace coluster {
 
 		// create cache table
 		LuaState::stack_guard_t guard(L);
-		lua_pushlightuserdata(L, GetCacheKey());
-		lua_newtable(L);
-		lua_newtable(L);
-		lua_pushliteral(L, "v");
-		lua_setfield(L, -2, "__mode");
-		lua_setmetatable(L, -2);
-		lua_rawset(L, LUA_REGISTRYINDEX);
+		LuaState lua(L);
+		lua.set_registry(GetCacheKey(), lua.make_table([](LuaState lua) {
+			lua.define_metatable(lua.make_table([](LuaState lua) {
+				lua.define("__mode", "v");
+			}));
+		}));
 
-		// create bind table
-		lua_pushlightuserdata(L, GetBindKey());
-		lua_newtable(L);
-		lua_rawset(L, LUA_REGISTRYINDEX);
+		lua.set_registry(GetBindKey(), lua.make_table([](LuaState lua) {
+			lua.define("trace", lua.make_table([](LuaState lua) {
+				lua.define_metatable(lua.make_table([](LuaState lua) {
+					lua.define("__mode", "k");
+				}));
+			}));
+		}));
 	}
 
 	void Warp::UnbindLuaRoot(lua_State* L) noexcept {
 		LuaState::stack_guard_t guard(L);
-		lua_pushlightuserdata(L, GetBindKey());
-		lua_pushnil(L);
-		lua_rawset(L, LUA_REGISTRYINDEX);
-
-		lua_pushlightuserdata(L, GetCacheKey());
-		lua_pushnil(L);
-		lua_rawset(L, LUA_REGISTRYINDEX);
+		LuaState lua(L);
+		lua.set_registry(GetCacheKey(), nullptr);
+		lua.set_registry(GetBindKey(), nullptr);
 
 		hostState = nullptr;
 	}
 
-	void Warp::ChainWait(const std::source_location& source, Warp* from, Warp* target) {
-		/*
-		if (from != target) {
-			printf("$> Warp %p is waiting for Warp: %p\n", from, target);
-			printf("$> Source file: %s:%d\n", source.file_name(), source.line());
-			lua_State* L = CurrentLuaThread;
-			if (L != nullptr) {
+	void Warp::ChainWait(const std::source_location& source, Warp* from, Warp* target, Warp* other) {
+		if (from != target || from != other) {
+			// printf("$> Warp %p is waiting for Warp: %p\n", from, target);
+			// printf("$> Source file: %s:%d\n", source.file_name(), source.line());
+			Warp* scriptWarp = from != nullptr ? from->get_async_worker().GetScriptWarp() : target != nullptr ? target->get_async_worker().GetScriptWarp() : other->get_async_worker().GetScriptWarp();
+			assert(scriptWarp != nullptr);
+
+			// use raw api for faster operation
+			scriptWarp->queue_routine([address = Warp::GetCurrentCoroutineAddress(), source, from, target, other]() {
+				Warp* scriptWarp = Warp::get_current_warp();
+				lua_State* L = scriptWarp->hostState;
 				LuaState::stack_guard_t guard(L);
-				luaL_traceback(L, L, "$> ", 0);
-				printf("%s\n", lua_tostring(L, -1));
-				lua_pop(L, 1);
-			}
-		}*/
+				lua_pushlightuserdata(L, scriptWarp->GetBindKey());
+				lua_rawget(L, LUA_REGISTRYINDEX);
+				lua_pushliteral(L, "trace");
+				lua_rawget(L, -2);
+				lua_pushlightuserdata(L, address);
+				lua_rawget(L, LUA_REGISTRYINDEX); // get thread
+
+				if (lua_type(L, -1) != LUA_TNIL) {
+					lua_pushfstring(L, "<<Wait>> Warp [%p] ==> Warp [%p][%p] at %s <%s:%d>", from, target, other, source.function_name(), source.file_name(), source.line());
+					// fprintf(stdout, "%s\n", lua_tostring(L, -1));
+					lua_rawset(L, -3);
+					lua_pop(L, 2);
+				} else {
+					lua_pop(L, 3);
+				}
+			});
+		}
 	}
 
-	void Warp::ChainEnter(Warp* from, Warp* target) {
+	void Warp::ChainEnter(Warp* from, Warp* target, Warp* other) {
 		/*
 		if (from != target) {
 			printf("$> Warp %p is entered from Warp: %p\n", from, target);
 		}*/
 	}
 
-	void Warp::BindLuaCoroutine(void* address) noexcept {
-		assert(CurrentLuaThread == nullptr);
-		assert(hostState != nullptr);
-
-		lua_State* L = hostState;
-		LuaState::stack_guard_t guard(L);
-		assert(L != nullptr);
-		lua_pushlightuserdata(L, address);
-		lua_rawget(L, LUA_REGISTRYINDEX);
-		lua_State* T = lua_tothread(L, -1);
-		lua_pop(L, 1);
-
-		CurrentLuaThread = T;
+	void Warp::SetCurrentCoroutineAddress(void* address) noexcept {
+		assert(CurrentCoroutineAddress == nullptr || address == nullptr);
+		CurrentCoroutineAddress = address;
 	}
 
-	void Warp::UnbindLuaCoroutine() noexcept {
-		CurrentLuaThread = nullptr;
+	void* Warp::GetCurrentCoroutineAddress() noexcept {
+		return CurrentCoroutineAddress;
 	}
 
 	void Warp::Acquire() {
@@ -144,14 +140,9 @@ namespace coluster {
 		yield();
 	}
 
-	Warp::SwitchWarp::SwitchWarp(const std::source_location& source, Warp* target_warp, Warp* other_warp) noexcept : Base(target_warp, other_warp), luaState(CurrentLuaThread) {
-		Warp::ChainWait(source, Base::source, Base::target != nullptr ? Base::target : Base::other);
-
-		if (Base::target != Base::other && Base::target != nullptr && Base::other != nullptr) {
-			Warp::ChainWait(source, Base::source, Base::other);
-		}
-
-		CurrentLuaThread = nullptr;
+	Warp::SwitchWarp::SwitchWarp(const std::source_location& source, Warp* target_warp, Warp* other_warp) noexcept : Base(target_warp, other_warp), coroutineAddress(Warp::GetCurrentCoroutineAddress()) {
+		Warp::ChainWait(source, Base::source, Base::target, Base::other);
+		Warp::SetCurrentCoroutineAddress(nullptr);
 	}
 
 	bool Warp::SwitchWarp::await_ready() const noexcept {
@@ -163,16 +154,11 @@ namespace coluster {
 	}
 
 	Warp* Warp::SwitchWarp::await_resume() const noexcept {
-		CurrentLuaThread = luaState;
+		Warp::SetCurrentCoroutineAddress(coroutineAddress);
 		Warp* ret = Base::await_resume();
 		assert(ret == Base::source);
 
-		Warp::ChainEnter(Base::source, Base::target != nullptr ? Base::target : Base::other);
-
-		if (Base::target != Base::other && Base::target != nullptr && Base::other != nullptr) {
-			Warp::ChainEnter(Base::source, Base::other);
-		}
-
+		Warp::ChainEnter(Base::source, Base::target, Base::other);
 		return ret;
 	}
 

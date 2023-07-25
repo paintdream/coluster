@@ -15,14 +15,15 @@ namespace coluster {
 		void await_resume() noexcept;
 
 	protected:
-		lua_State* luaState;
+		Warp* warp;
+		void* coroutineAddress;
 		CmdBuffer& cmdBuffer;
 		info_t info;
 	};
 
-	CmdCompletion::CmdCompletion(const std::source_location& source, CmdBuffer& buffer) : iris_sync_t(buffer.GetWarp().get_async_worker()), luaState(Warp::GetCurrentLuaThread()), cmdBuffer(buffer) {
-		Warp::ChainWait(source, nullptr, nullptr);
-		Warp::SetCurrentLuaThread(nullptr);
+	CmdCompletion::CmdCompletion(const std::source_location& source, CmdBuffer& buffer) : iris_sync_t(buffer.GetWarp().get_async_worker()), warp(Warp::get_current_warp()), coroutineAddress(Warp::GetCurrentCoroutineAddress()), cmdBuffer(buffer) {
+		Warp::ChainWait(source, warp, nullptr, nullptr);
+		Warp::SetCurrentCoroutineAddress(nullptr);
 	}
 
 	CmdCompletion::~CmdCompletion() {}
@@ -37,8 +38,8 @@ namespace coluster {
 	}
 
 	void CmdCompletion::await_resume() noexcept {
-		Warp::SetCurrentLuaThread(luaState);
-		Warp::ChainEnter(nullptr, nullptr);
+		Warp::SetCurrentCoroutineAddress(coroutineAddress);
+		Warp::ChainEnter(warp, nullptr, nullptr);
 	}
 
 	CmdBuffer::CmdBuffer(Device& dev) : DeviceObject(dev), Warp(dev.GetWarp().get_async_worker()) {

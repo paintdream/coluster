@@ -37,7 +37,8 @@ namespace coluster {
 		void Clear();
 
 	protected:
-		lua_State* luaState;
+		Warp* warp;
+		void* coroutineAddress;
 		Device& device;
 		std::span<VkCommandBuffer> commandBuffers;
 		VkFence fence;

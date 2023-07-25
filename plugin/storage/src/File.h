@@ -19,7 +19,8 @@ namespace coluster {
 		void await_suspend(CoroutineHandle<> handle);
 		void Resume();
 
-		lua_State* luaState;
+		Warp* warp;
+		void* coroutineAddress;
 		File& file;
 		info_t info;
 	};

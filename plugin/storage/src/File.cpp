@@ -101,9 +101,9 @@ namespace coluster {
 #endif
 	}
 
-	FileCompletion::FileCompletion(const std::source_location& source, File& f) : iris_sync_t<Warp, AsyncWorker>(f.GetStorage().GetAsyncWorker()), luaState(Warp::GetCurrentLuaThread()), file(f) {
-		Warp::ChainWait(source, nullptr, nullptr);
-		Warp::SetCurrentLuaThread(nullptr);
+	FileCompletion::FileCompletion(const std::source_location& source, File& f) : iris_sync_t<Warp, AsyncWorker>(f.GetStorage().GetAsyncWorker()), warp(Warp::get_current_warp()), coroutineAddress(Warp::GetCurrentCoroutineAddress()), file(f) {
+		Warp::ChainWait(source, warp, nullptr, nullptr);
+		Warp::SetCurrentCoroutineAddress(nullptr);
 	}
 
 	void FileCompletion::await_suspend(CoroutineHandle<> handle) {
@@ -113,8 +113,8 @@ namespace coluster {
 	}
 
 	void FileCompletion::await_resume() noexcept {
-		Warp::SetCurrentLuaThread(luaState);
-		Warp::ChainEnter(nullptr, nullptr);
+		Warp::SetCurrentCoroutineAddress(coroutineAddress);
+		Warp::ChainEnter(warp, nullptr, nullptr);
 	}
 
 	void FileCompletion::Resume() {

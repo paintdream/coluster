@@ -104,17 +104,15 @@ namespace coluster {
 			COLUSTER_API Warp* await_resume() const noexcept;
 
 		protected:
-			lua_State* luaState;
+			void* coroutineAddress;
 		};
 
 		COLUSTER_API static Warp* get_current_warp() noexcept;
-		COLUSTER_API AsyncWorker& get_async_worker() noexcept;
-		COLUSTER_API static lua_State* GetCurrentLuaThread() noexcept;
-		COLUSTER_API static void SetCurrentLuaThread(lua_State* L) noexcept;
+		COLUSTER_API static void SetCurrentCoroutineAddress(void* address) noexcept;
+		COLUSTER_API static void* GetCurrentCoroutineAddress() noexcept;
 		COLUSTER_API static SwitchWarp Switch(const std::source_location& source, Warp* target, Warp* other = nullptr) noexcept;
+		COLUSTER_API AsyncWorker& get_async_worker() noexcept;
 		COLUSTER_API explicit Warp(AsyncWorker& asyncWorker) : Base(asyncWorker) { assert(!asyncWorker.is_terminated()); }
-		COLUSTER_API void BindLuaCoroutine(void* address) noexcept;
-		COLUSTER_API void UnbindLuaCoroutine() noexcept;
 		COLUSTER_API void BindLuaRoot(lua_State* L) noexcept;
 		COLUSTER_API void UnbindLuaRoot(lua_State* L) noexcept;
 		COLUSTER_API void Acquire();
@@ -140,10 +138,6 @@ namespace coluster {
 			return GetTable<value_t>(GetCacheKey(), std::forward<key_t>(key));
 		}
 
-		COLUSTER_API static void ChainWait(const std::source_location& source, Warp* from, Warp* target);
-		COLUSTER_API static void ChainEnter(Warp* from, Warp* target);
-
-	protected:
 		void* GetCacheKey() noexcept {
 			return &hostState;
 		}
@@ -153,6 +147,10 @@ namespace coluster {
 			return this;
 		}
 
+		COLUSTER_API static void ChainWait(const std::source_location& source, Warp* from, Warp* target, Warp* other);
+		COLUSTER_API static void ChainEnter(Warp* from, Warp* target, Warp* other);
+
+	protected:
 		template <typename value_t, typename key_t>
 		void SetTable(void* tableKey, key_t&& key, value_t&& value) noexcept {
 			lua_State* L = hostState;
@@ -197,7 +195,7 @@ namespace coluster {
 
 		template <typename func_t>
 		Coroutine& complete(func_t&& func) noexcept {
-			currentWarp->BindLuaCoroutine(Base::get_handle().address());
+			Warp::SetCurrentCoroutineAddress(Base::get_handle().address());
 
 			if constexpr (!std::is_void_v<return_t>) {
 				Base::complete([
@@ -205,10 +203,9 @@ namespace coluster {
 					currentWarp = currentWarp, 
 #endif
 				func = std::forward<func_t>(func)](return_t&& value) mutable {
-					Warp* warp = Warp::get_current_warp();
-					warp->UnbindLuaCoroutine();
+					Warp::SetCurrentCoroutineAddress(nullptr);
 #ifdef _DEBUG
-					assert(currentWarp == warp);
+					assert(currentWarp == Warp::get_current_warp());
 #endif
 					func(std::move(value));
 				});
@@ -218,10 +215,9 @@ namespace coluster {
 					currentWarp = currentWarp, 
 #endif
 				func = std::forward<func_t>(func)]() mutable {
-					Warp* warp = Warp::get_current_warp();
-					warp->UnbindLuaCoroutine();
+					Warp::SetCurrentCoroutineAddress(nullptr);
 #ifdef _DEBUG
-					assert(currentWarp == warp);
+					assert(currentWarp == Warp::get_current_warp());
 #endif
 					func();
 				});
@@ -232,7 +228,7 @@ namespace coluster {
 
 		void run() noexcept(noexcept(Base::run())) {
 			Base::run();
-			currentWarp->UnbindLuaCoroutine();
+			Warp::SetCurrentCoroutineAddress(nullptr);
 		}
 
 	protected:
