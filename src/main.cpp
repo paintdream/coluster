@@ -27,11 +27,14 @@ public:
 	bool Poll(bool pollAsyncTasks);
 	bool Stop();
 	void Sleep(size_t milliseconds);
+	Ref GetProfile(LuaState lua);
+	AsyncWorker::MemoryQuota::amount_t GetQuota() noexcept;
 
 	static size_t GetHardwareConcurrency() noexcept;
 	size_t GetWorkerThreadCount() const noexcept;
 	size_t GetTaskCount() const noexcept;
 	bool IsMainThread() const noexcept;
+	bool IsWorkerTerminated() const noexcept;
 
 protected:
 	void doREPL(lua_State* L);
@@ -56,15 +59,22 @@ void Coluster::lua_registar(LuaState lua) {
 	lua.define<&Coluster::Poll>("Poll");
 	lua.define<&Coluster::Stop>("Stop");
 	lua.define<&Coluster::Sleep>("Sleep");
+	lua.define<&Coluster::GetProfile>("GetProfile");
+	lua.define<&Coluster::GetQuota>("GetQuota");
 	lua.define<&Coluster::GetStatus>("GetStatus");
 	lua.define<&Coluster::GetHardwareConcurrency>("GetHardwareConcurrency");
 	lua.define<&Coluster::GetWorkerThreadCount>("GetWorkerThreadCount");
+	lua.define<&Coluster::IsWorkerTerminated>("IsWorkerTerminated");
 	lua.define<&Coluster::GetTaskCount>("GetTaskCount");
 	lua.define<&Coluster::IsMainThread>("IsMainThread");
 }
 
 bool Coluster::IsMainThread() const noexcept {
 	return get_current_thread_index() == mainThreadIndex;
+}
+
+bool Coluster::IsWorkerTerminated() const noexcept {
+	return is_terminated();
 }
 
 size_t Coluster::GetWorkerThreadCount() const noexcept {
@@ -162,6 +172,23 @@ bool Coluster::Start(LuaState lua, size_t threadCount) {
 
 void Coluster::Sleep(size_t milliseconds) {
 	std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+}
+
+AsyncWorker::MemoryQuota::amount_t Coluster::GetQuota() noexcept {
+	return GetMemoryQuotaQueue().GetAmount();
+}
+
+Ref Coluster::GetProfile(LuaState lua) {
+	if (scriptWarp) {
+		lua_State* L = lua.get_state();
+		LuaState::stack_guard_t guard(L);
+		lua_pushlightuserdata(L, scriptWarp->GetBindKey());
+		lua_rawget(L, LUA_REGISTRYINDEX);
+		return Ref(luaL_ref(L, LUA_REGISTRYINDEX));
+	} else {
+		fprintf(stderr, "[ERROR] Cannot GetProfile while coluster is not running!");
+		return Ref();
+	}
 }
 
 bool Coluster::Post(LuaState lua, Ref&& callback) {

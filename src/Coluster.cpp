@@ -16,6 +16,16 @@ namespace coluster {
 	static constexpr size_t DEFAULT_HOST_MEMORY_BUDGET = 1024 * 1024 * 1024;
 	static constexpr size_t DEFAULT_DEVICE_MEMORY_BUDGET = 1024 * 1024 * 1024;
 
+	static thread_local void* CurrentCoroutineAddress = nullptr;
+	void SetCurrentCoroutineAddress(void* address) noexcept {
+		assert(CurrentCoroutineAddress == nullptr || address == nullptr);
+		CurrentCoroutineAddress = address;
+	}
+
+	void* GetCurrentCoroutineAddress() noexcept {
+		return CurrentCoroutineAddress;
+	}
+
 	AsyncWorker::AsyncWorker() : memoryQuota({ DEFAULT_HOST_MEMORY_BUDGET, DEFAULT_DEVICE_MEMORY_BUDGET }), memoryQuotaQueue(*this, memoryQuota) {}
 	AsyncWorker::MemoryQuotaQueue& AsyncWorker::GetMemoryQuotaQueue() noexcept {
 		return memoryQuotaQueue;
@@ -34,8 +44,6 @@ namespace coluster {
 			while (!warp->join()) {}
 		}
 	}
-
-	static thread_local void* CurrentCoroutineAddress = nullptr;
 
 	Warp* Warp::get_current_warp() noexcept {
 		return static_cast<Warp*>(Base::get_current_warp());
@@ -87,7 +95,7 @@ namespace coluster {
 			assert(scriptWarp != nullptr);
 
 			// use raw api for faster operation
-			scriptWarp->queue_routine([address = Warp::GetCurrentCoroutineAddress(), source, from, target, other]() {
+			scriptWarp->queue_routine([address = GetCurrentCoroutineAddress(), source, from, target, other]() {
 				Warp* scriptWarp = Warp::get_current_warp();
 				lua_State* L = scriptWarp->hostState;
 				LuaState::stack_guard_t guard(L);
@@ -111,19 +119,33 @@ namespace coluster {
 	}
 
 	void Warp::ChainEnter(Warp* from, Warp* target, Warp* other) {
-		/*
-		if (from != target) {
-			printf("$> Warp %p is entered from Warp: %p\n", from, target);
-		}*/
-	}
+		if (from != target || from != other) {
+			Warp* scriptWarp = from != nullptr ? from->get_async_worker().GetScriptWarp() : target != nullptr ? target->get_async_worker().GetScriptWarp() : other->get_async_worker().GetScriptWarp();
+			assert(scriptWarp != nullptr);
 
-	void Warp::SetCurrentCoroutineAddress(void* address) noexcept {
-		assert(CurrentCoroutineAddress == nullptr || address == nullptr);
-		CurrentCoroutineAddress = address;
-	}
+			// use raw api for faster operation
+			scriptWarp->queue_barrier();
+			scriptWarp->queue_routine([address = GetCurrentCoroutineAddress(), from, target, other]() {
+				Warp* scriptWarp = Warp::get_current_warp();
+				lua_State* L = scriptWarp->hostState;
+				LuaState::stack_guard_t guard(L);
+				lua_pushlightuserdata(L, scriptWarp->GetBindKey());
+				lua_rawget(L, LUA_REGISTRYINDEX);
+				lua_pushliteral(L, "trace");
+				lua_rawget(L, -2);
+				lua_pushlightuserdata(L, address);
+				lua_rawget(L, LUA_REGISTRYINDEX); // get thread
 
-	void* Warp::GetCurrentCoroutineAddress() noexcept {
-		return CurrentCoroutineAddress;
+				if (lua_type(L, -1) != LUA_TNIL) {
+					lua_pushfstring(L, "<<Running>> Warp [%p] ==> Warp [%p][%p]", from, target, other);
+					// fprintf(stdout, "%s\n", lua_tostring(L, -1));
+					lua_rawset(L, -3);
+					lua_pop(L, 2);
+				} else {
+					lua_pop(L, 3);
+				}
+			});
+		}
 	}
 
 	void Warp::Acquire() {
@@ -140,9 +162,9 @@ namespace coluster {
 		yield();
 	}
 
-	Warp::SwitchWarp::SwitchWarp(const std::source_location& source, Warp* target_warp, Warp* other_warp) noexcept : Base(target_warp, other_warp), coroutineAddress(Warp::GetCurrentCoroutineAddress()) {
+	Warp::SwitchWarp::SwitchWarp(const std::source_location& source, Warp* target_warp, Warp* other_warp) noexcept : Base(target_warp, other_warp), coroutineAddress(GetCurrentCoroutineAddress()) {
 		Warp::ChainWait(source, Base::source, Base::target, Base::other);
-		Warp::SetCurrentCoroutineAddress(nullptr);
+		SetCurrentCoroutineAddress(nullptr);
 	}
 
 	bool Warp::SwitchWarp::await_ready() const noexcept {
@@ -154,7 +176,7 @@ namespace coluster {
 	}
 
 	Warp* Warp::SwitchWarp::await_resume() const noexcept {
-		Warp::SetCurrentCoroutineAddress(coroutineAddress);
+		SetCurrentCoroutineAddress(coroutineAddress);
 		Warp* ret = Base::await_resume();
 		assert(ret == Base::source);
 

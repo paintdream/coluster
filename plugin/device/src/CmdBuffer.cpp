@@ -21,9 +21,9 @@ namespace coluster {
 		info_t info;
 	};
 
-	CmdCompletion::CmdCompletion(const std::source_location& source, CmdBuffer& buffer) : iris_sync_t(buffer.GetWarp().get_async_worker()), warp(Warp::get_current_warp()), coroutineAddress(Warp::GetCurrentCoroutineAddress()), cmdBuffer(buffer) {
+	CmdCompletion::CmdCompletion(const std::source_location& source, CmdBuffer& buffer) : iris_sync_t(buffer.GetWarp().get_async_worker()), warp(Warp::get_current_warp()), coroutineAddress(GetCurrentCoroutineAddress()), cmdBuffer(buffer) {
 		Warp::ChainWait(source, warp, nullptr, nullptr);
-		Warp::SetCurrentCoroutineAddress(nullptr);
+		SetCurrentCoroutineAddress(nullptr);
 	}
 
 	CmdCompletion::~CmdCompletion() {}
@@ -38,7 +38,7 @@ namespace coluster {
 	}
 
 	void CmdCompletion::await_resume() noexcept {
-		Warp::SetCurrentCoroutineAddress(coroutineAddress);
+		SetCurrentCoroutineAddress(coroutineAddress);
 		Warp::ChainEnter(warp, nullptr, nullptr);
 	}
 

@@ -40,10 +40,6 @@
 
 namespace coluster {
 	using LuaState = iris::iris_lua_t;
-	template <typename quantity_t, size_t n>
-	using Quota = iris::iris_quota_t<quantity_t, n>;
-	template <typename quota_t, typename warp_t, typename async_worker_t>
-	using QuotaQueue = iris::iris_quota_queue_t<quota_t, warp_t, async_worker_t>;
 	using EnableReadWriteFence = iris::enable_read_write_fence_t<>;
 	using EnableInOutFence = iris::enable_in_out_fence_t<>;
 
@@ -66,6 +62,40 @@ namespace coluster {
 		Priority_Normal,
 		Priority_Lowest,
 		Priority_Count
+	};
+
+	COLUSTER_API void SetCurrentCoroutineAddress(void* address) noexcept;
+	COLUSTER_API void* GetCurrentCoroutineAddress() noexcept;
+
+	template <typename quantity_t, size_t n>
+	using Quota = iris::iris_quota_t<quantity_t, n>;
+	template <typename quota_t, typename warp_t, typename async_worker_t>
+	struct QuotaQueue : iris::iris_quota_queue_t<quota_t, warp_t, async_worker_t> {
+		using Base = iris::iris_quota_queue_t<quota_t, warp_t, async_worker_t>;
+		QuotaQueue(async_worker_t& worker, quota_t& q) : Base(worker, q) {}
+
+		struct awaitable_t : Base::awaitable_t {
+			using BaseAwaitable = typename Base::awaitable_t;
+			awaitable_t(QuotaQueue& q, const typename Base::amount_t& m, bool r) noexcept : BaseAwaitable(q, m, r), coroutineAddress(GetCurrentCoroutineAddress()) {
+				SetCurrentCoroutineAddress(nullptr);
+			}
+		
+			auto await_resume() noexcept {
+				SetCurrentCoroutineAddress(coroutineAddress);
+				return BaseAwaitable::await_resume();
+			}
+
+		protected:
+			void* coroutineAddress;
+		};
+
+		awaitable_t guard(const typename Base::amount_t& amount) {
+			return awaitable_t(*this, amount, Base::quota.acquire(amount));
+		}
+
+		typename Base::amount_t GetAmount() const noexcept {
+			return Base::quota.get();
+		}
 	};
 
 	enum QuotaType : size_t {
@@ -108,8 +138,6 @@ namespace coluster {
 		};
 
 		COLUSTER_API static Warp* get_current_warp() noexcept;
-		COLUSTER_API static void SetCurrentCoroutineAddress(void* address) noexcept;
-		COLUSTER_API static void* GetCurrentCoroutineAddress() noexcept;
 		COLUSTER_API static SwitchWarp Switch(const std::source_location& source, Warp* target, Warp* other = nullptr) noexcept;
 		COLUSTER_API AsyncWorker& get_async_worker() noexcept;
 		COLUSTER_API explicit Warp(AsyncWorker& asyncWorker) : Base(asyncWorker) { assert(!asyncWorker.is_terminated()); }
@@ -195,7 +223,7 @@ namespace coluster {
 
 		template <typename func_t>
 		Coroutine& complete(func_t&& func) noexcept {
-			Warp::SetCurrentCoroutineAddress(Base::get_handle().address());
+			SetCurrentCoroutineAddress(Base::get_handle().address());
 
 			if constexpr (!std::is_void_v<return_t>) {
 				Base::complete([
@@ -203,7 +231,7 @@ namespace coluster {
 					currentWarp = currentWarp, 
 #endif
 				func = std::forward<func_t>(func)](return_t&& value) mutable {
-					Warp::SetCurrentCoroutineAddress(nullptr);
+					SetCurrentCoroutineAddress(nullptr);
 #ifdef _DEBUG
 					assert(currentWarp == Warp::get_current_warp());
 #endif
@@ -215,7 +243,7 @@ namespace coluster {
 					currentWarp = currentWarp, 
 #endif
 				func = std::forward<func_t>(func)]() mutable {
-					Warp::SetCurrentCoroutineAddress(nullptr);
+					SetCurrentCoroutineAddress(nullptr);
 #ifdef _DEBUG
 					assert(currentWarp == Warp::get_current_warp());
 #endif
@@ -228,7 +256,7 @@ namespace coluster {
 
 		void run() noexcept(noexcept(Base::run())) {
 			Base::run();
-			Warp::SetCurrentCoroutineAddress(nullptr);
+			SetCurrentCoroutineAddress(nullptr);
 		}
 
 	protected:

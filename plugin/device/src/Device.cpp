@@ -12,9 +12,9 @@
 namespace coluster {
 	static constexpr size_t MAX_DESCRIPTOR_COUNT = 1024u;
 
-	SubmitCompletion::SubmitCompletion(const std::source_location& source, Device& dev, std::span<VkCommandBuffer> buffers) : iris_sync_t(dev.GetWarp().get_async_worker()), warp(Warp::get_current_warp()), coroutineAddress(Warp::GetCurrentCoroutineAddress()), device(dev), commandBuffers(buffers), fence(VK_NULL_HANDLE) {
+	SubmitCompletion::SubmitCompletion(const std::source_location& source, Device& dev, std::span<VkCommandBuffer> buffers) : iris_sync_t(dev.GetWarp().get_async_worker()), warp(Warp::get_current_warp()), coroutineAddress(GetCurrentCoroutineAddress()), device(dev), commandBuffers(buffers), fence(VK_NULL_HANDLE) {
 		Warp::ChainWait(source, warp, nullptr, nullptr);
-		Warp::SetCurrentCoroutineAddress(nullptr);
+		SetCurrentCoroutineAddress(nullptr);
 	}
 
 	SubmitCompletion::~SubmitCompletion() {
@@ -35,7 +35,7 @@ namespace coluster {
 	}
 
 	void SubmitCompletion::await_resume() noexcept {
-		Warp::SetCurrentCoroutineAddress(coroutineAddress);
+		SetCurrentCoroutineAddress(coroutineAddress);
 		Warp::ChainEnter(warp, nullptr, nullptr);
 	}
 
