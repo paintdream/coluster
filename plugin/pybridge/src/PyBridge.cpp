@@ -265,7 +265,12 @@ namespace coluster {
 				lua.native_push_variable(PyLong_AsLongLong(object));
 			} else if (type == &PyUnicode_Type) {
 				Py_ssize_t size = 0;
+#if PY_MAJOR_VERSION < 3 
+				char* s = nullptr;
+				PyString_AsStringAndSize(object, &s, &size);
+#else
 				const char* s = PyUnicode_AsUTF8AndSize(object, &size);
+#endif
 				lua.native_push_variable(std::string_view(s, size));
 			} else if (type == &PyTuple_Type) {
 				Py_ssize_t size = PyTuple_GET_SIZE(object);
