@@ -33,6 +33,16 @@ coluster:Post(function ()
 	print("Initializing coluster services complete.")
 end)
 
+for i = 1, 8 do
+	coluster:Poll()
+	for co, info in pairs(coluster:GetProfile().trace) do
+		print("------------------")
+		print("[C] " .. info)
+		print("[Lua] " .. debug.traceback(co))
+	end
+	print("------------------")
+end
+
 coluster:Join(function ()
 	for i = #services, 1, -1 do
 		local service = services[i]
