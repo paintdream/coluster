@@ -263,6 +263,8 @@ namespace coluster {
 				lua.native_push_variable(object != Py_False);
 			} else if (type == &PyLong_Type) {
 				lua.native_push_variable(PyLong_AsLongLong(object));
+			} else if (type == &PyFloat_Type) {
+				lua.native_push_variable(PyFloat_AsDouble(object));
 			} else if (type == &PyUnicode_Type) {
 				Py_ssize_t size = 0;
 #if PY_MAJOR_VERSION < 3 
