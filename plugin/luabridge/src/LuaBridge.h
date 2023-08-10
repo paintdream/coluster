@@ -22,8 +22,9 @@
 #endif
 
 namespace coluster {
-	class LuaBridge : protected Warp {
+	class LuaBridge : protected Warp, public Pool<LuaBridge, lua_State*, 256> {
 	public:
+		using PoolBase = Pool<LuaBridge, lua_State*, 256>;
 		LuaBridge(AsyncWorker& asyncWorker);
 		~LuaBridge() noexcept;
 
@@ -52,6 +53,12 @@ namespace coluster {
 		void lua_initialize(LuaState lua, int index);
 		void lua_finalize(LuaState lua, int index);
 		static void lua_registar(LuaState lua);
+
+		template <typename element_t>
+		[[nodiscard]] element_t acquire_element();
+
+		template <typename element_t>
+		void release_element(element_t element);
 
 	protected:
 		void QueueDeleteObject(Ref&& object);

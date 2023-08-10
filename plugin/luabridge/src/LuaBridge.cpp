@@ -27,6 +27,7 @@ namespace coluster {
 	}
 
 	LuaBridge::~LuaBridge() noexcept {
+		PoolBase::clear();
 		assert(dataExchangeStack == nullptr);
 		UnbindLuaRoot(state);
 		lua_close(state);
@@ -102,8 +103,8 @@ namespace coluster {
 		LuaState dataExchange(D);
 
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), Warp::get_current_warp(), &GetWarp());
-		LuaState target(lua_newthread(state));
-		Ref threadRef = Ref(luaL_ref(state, LUA_REGISTRYINDEX));
+		lua_State* T = acquire();
+		LuaState target(T);
 
 		for (int i = 1; i <= count; i++) {
 			dataExchange.native_cross_transfer_variable<true>(target, i);
@@ -123,7 +124,7 @@ namespace coluster {
 			}
 		}
 
-		target.deref(std::move(threadRef));
+		release(std::move(T));
 
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		co_return StackIndex { dataExchange, ret };
@@ -164,5 +165,21 @@ namespace coluster {
 		lua.define<&LuaBridge::Load>("Load");
 		lua.define<&LuaBridge::Get>("Get");
 		lua.define<&LuaBridge::Call>("Call");
+	}
+
+	template <>
+	lua_State* LuaBridge::acquire_element<lua_State*>() {
+		lua_State* L = lua_newthread(state);
+		lua_pushboolean(state, 1);
+		lua_rawset(state, LUA_REGISTRYINDEX);
+
+		return L;
+	}
+
+	template <>
+	void LuaBridge::release_element(lua_State* element) {
+		lua_pushthread(element);
+		lua_pushnil(element);
+		lua_rawset(element, LUA_REGISTRYINDEX);
 	}
 }

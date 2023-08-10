@@ -47,8 +47,8 @@ namespace coluster {
 	using QueueList = iris::iris_queue_list_t<element_t, iris::iris_default_block_allocator_t, iris::iris_default_block_allocator_t, true>;
 	template <typename element_t>
 	using QueueListRelaxed = iris::iris_queue_list_t<element_t, iris::iris_default_block_allocator_t, iris::iris_default_block_allocator_t, false>;
-	template <typename interface_t, typename element_t>
-	using Pool = iris::iris_pool_t<interface_t, iris::iris_queue_list_t<element_t>>;
+	template <typename interface_t, typename element_t, size_t block_size = iris::default_block_size>
+	using Pool = iris::iris_pool_t<interface_t, iris::iris_queue_list_t<element_t>, block_size>;
 	using Cache = iris::iris_cache_t<uint8_t>;
 
 	using Ref = LuaState::ref_t;
