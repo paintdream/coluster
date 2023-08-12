@@ -60,33 +60,33 @@ namespace coluster {
 		}
 	}
 
-	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Get(Required<RefPtr<LuaBridge>> s, LuaState lua, std::string_view name) {
-		LuaBridge* self = s.get();
-		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &self->GetWarp());
-		LuaState target(self->state);
+	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Get(LuaState lua, std::string_view name) {
+		Ref s = lua.get_context<Ref>(LuaState::context_this());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
+		LuaState target(state);
 		Ref ref = target.get_global<Ref>(name);
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
 
-		if (self->dataExchangeStack != nullptr) {
-			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, std::move(ref));
+		if (dataExchangeStack != nullptr) {
+			co_return lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, std::move(ref));
 		} else {
-			lua.deref(std::move(s.get()));
+			lua.deref(std::move(s));
 			lua.deref(std::move(ref));
 			co_return RefPtr<Object>();
 		}
 	}
 
-	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Load(Required<RefPtr<LuaBridge>> s, LuaState lua, std::string_view code) {
-		LuaBridge* self = s.get();
-		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &self->GetWarp());
-		LuaState target(self->state);
+	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Load(LuaState lua, std::string_view code) {
+		Ref s = lua.get_context<Ref>(LuaState::context_this());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
+		LuaState target(state);
 		Ref ref = target.load(code);
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
 
-		if (self->dataExchangeStack != nullptr) {
-			co_return lua.make_object<Object>(self->FetchObjectType(lua, currentWarp, std::move(s.get())), *self, std::move(ref));
+		if (dataExchangeStack != nullptr) {
+			co_return lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, std::move(ref));
 		} else {
-			lua.deref(std::move(s.get()));
+			lua.deref(std::move(s));
 			lua.deref(std::move(ref));
 			co_return RefPtr<Object>();
 		}

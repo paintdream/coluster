@@ -42,10 +42,10 @@ namespace coluster {
 			PyObject* object;
 		};
 
-		static Coroutine<RefPtr<Object>> Get(Required<RefPtr<PyBridge>> self, LuaState lua, std::string_view name);
-		static Coroutine<RefPtr<Object>> Call(Required<RefPtr<PyBridge>> self, LuaState lua, Required<Object*> callable, std::vector<Object*>&& parameters);
-		static Coroutine<RefPtr<Object>> Import(Required<RefPtr<PyBridge>> self, LuaState lua, std::string_view name);
-		static Coroutine<RefPtr<Object>> Pack(Required<RefPtr<PyBridge>> self, LuaState lua, Ref&& ref);
+		Coroutine<RefPtr<Object>> Get(LuaState lua, std::string_view name);
+		Coroutine<RefPtr<Object>> Call(LuaState lua, Required<Object*> callable, std::vector<Object*>&& parameters);
+		Coroutine<RefPtr<Object>> Import(LuaState lua, std::string_view name);
+		Coroutine<RefPtr<Object>> Pack(LuaState lua, Ref&& ref);
 		Coroutine<Ref> Unpack(LuaState lua, RefPtr<Object>&& object);
 		void lua_initialize(LuaState lua, int index);
 		void lua_finalize(LuaState lua, int index);
