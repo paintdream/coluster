@@ -217,12 +217,9 @@ bool Coluster::Stop() {
 }
 
 extern "C" COLUSTER_API int luaopen_coluster(lua_State * L) {
-	LuaState luaState(L);
-	auto ref = luaState.make_type<Coluster>("Coluster");
-	lua_rawgeti(L, LUA_REGISTRYINDEX, ref.get());
-	luaState.deref(std::move(ref));
-
-	return 1;
+	return LuaState::forward(L, [](LuaState luaState) {
+		return luaState.make_type<Coluster>("Coluster");
+	});
 }
 
 // copied from lua.c
