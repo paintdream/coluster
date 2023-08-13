@@ -151,8 +151,9 @@ namespace coluster {
 	void LuaBridge::lua_initialize(LuaState lua, int index) {
 		lua_State* L = lua.get_state();
 		LuaState::stack_guard_t guard(L);
-		dataExchangeStack = lua_newthread(L);
-		dataExchangeRef = Ref(luaL_ref(L, LUA_REGISTRYINDEX));
+		dataExchangeRef = lua.make_thread([&](LuaState lua) {
+			dataExchangeStack = lua.get_state();
+		});
 	}
 
 	void LuaBridge::lua_finalize(LuaState lua, int index) {

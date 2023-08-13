@@ -108,8 +108,9 @@ void Coluster::LuaHook(lua_State* L, lua_Debug* ar) {
 void Coluster::lua_initialize(LuaState lua, int index) {
 	lua_State* L = lua.get_state();
 	lua_sethook(L, LuaHook, LUA_MASKCALL | LUA_MASKRET, 0);
-	cothread = LuaState(lua_newthread(L));
-	cothreadRef = Ref(luaL_ref(L, LUA_REGISTRYINDEX));
+	cothreadRef = lua.make_thread([&](LuaState lua) {
+		cothread = lua;
+	});
 
 	lua_pushvalue(lua.get_state(), index);
 	luaL_ref(L, LUA_REGISTRYINDEX);
