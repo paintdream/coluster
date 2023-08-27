@@ -7,9 +7,9 @@
 #endif
 
 namespace iris {
-	implement_shared_static_instance(coluster::Warp::Base*, COLUSTER_API);
-	implement_shared_static_instance(coluster::AsyncWorker::thread_index_t, COLUSTER_API);
-	implement_shared_static_instance(coluster::RootAlloator, COLUSTER_API);
+	implement_shared_static_instance(coluster::Warp::Base*);
+	implement_shared_static_instance(coluster::AsyncWorker::thread_index_t);
+	implement_shared_static_instance(coluster::RootAlloator);
 }
 
 namespace coluster {

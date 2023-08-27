@@ -1,5 +1,4 @@
 #include "LuaBridge.h"
-#include "../../../ref/iris/src/iris_common.inl"
 using namespace coluster;
 
 extern "C" LUABRIDGE_API int luaopen_luabridge(lua_State * L) {

@@ -20,10 +20,6 @@
 #pragma warning(disable:4702)
 #endif
 
-#include "../ref/iris/src/iris_coroutine.h"
-#include "../ref/iris/src/iris_buffer.h"
-#include "../ref/iris/src/iris_lua.h"
-
 #ifdef COLUSTER_EXPORT
 	#ifdef __GNUC__
 		#define COLUSTER_API __attribute__ ((visibility ("default")))
@@ -37,6 +33,11 @@
 		#define COLUSTER_API __declspec(dllimport) // Note: actually gcc seems to also supports this syntax.
 	#endif
 #endif
+
+#define IRIS_SHARED_LIBRARY_DECORATOR COLUSTER_API
+#include "../ref/iris/src/iris_coroutine.h"
+#include "../ref/iris/src/iris_buffer.h"
+#include "../ref/iris/src/iris_lua.h"
 
 namespace coluster {
 	using LuaState = iris::iris_lua_t;
@@ -305,9 +306,9 @@ namespace coluster {
 
 
 namespace iris {
-	declare_shared_static_instance(coluster::Warp::Base*, COLUSTER_API);
-	declare_shared_static_instance(coluster::AsyncWorker::thread_index_t, COLUSTER_API);
-	declare_shared_static_instance(coluster::RootAlloator, COLUSTER_API);
+	declare_shared_static_instance(coluster::Warp::Base*);
+	declare_shared_static_instance(coluster::AsyncWorker::thread_index_t);
+	declare_shared_static_instance(coluster::RootAlloator);
 
 	template <>
 	struct iris_lua_convert_t<coluster::AutoAsyncWorker::Holder> {

@@ -1,5 +1,4 @@
 #include "Channel.h"
-#include "../../../ref/iris/src/iris_common.inl"
 using namespace coluster;
 
 extern "C" CHANNEL_API int luaopen_channel(lua_State* L) {
