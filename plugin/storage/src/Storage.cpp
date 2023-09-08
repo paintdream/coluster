@@ -94,10 +94,50 @@ namespace coluster {
 		lua.define<&Storage::TypeFile>("TypeFile");
 		lua.define<&Storage::MakeDirectory>("MakeDirectory");
 		lua.define<&Storage::ListDirectory>("ListDirectory");
+		lua.define<&Storage::CreateDirectories>("CreateDirectories");
+		lua.define<&Storage::GetFileSize>("GetFileSize");
+		lua.define<&Storage::ResizeFile>("ResizeFile");
+		lua.define<&Storage::Exists>("Exists");
+		lua.define<&Storage::IsDirectory>("IsDirectory");
+		lua.define<&Storage::Remove>("Remove");
+		lua.define<&Storage::RemoveAll>("RemoveAll");
+		lua.define<&Storage::Rename>("Rename");
+	}
+
+	size_t Storage::GetFileSize(std::string_view path) {
+		return std::filesystem::file_size(path);
+	}
+
+	void Storage::ResizeFile(std::string_view path, size_t newSize) {
+		return std::filesystem::resize_file(path, newSize);
+	}
+
+	bool Storage::Exists(std::string_view path) {
+		return std::filesystem::exists(path);
+	}
+
+	bool Storage::CreateDirectories(std::string_view path) {
+		return std::filesystem::create_directories(path);
 	}
 
 	bool Storage::MakeDirectory(std::string_view path) {
 		return std::filesystem::create_directories(path);
+	}
+
+	bool Storage::IsDirectory(std::string_view path) {
+		return std::filesystem::is_directory(path);
+	}
+
+	bool Storage::Remove(std::string_view path) {
+		return std::filesystem::remove(path);
+	}
+
+	size_t Storage::RemoveAll(std::string_view path) {
+		return std::filesystem::remove_all(path);
+	}
+
+	void Storage::Rename(std::string_view oldName, std::string_view newName) {
+		return std::filesystem::rename(oldName, newName);
 	}
 
 	std::vector<std::string> Storage::ListDirectory(std::string_view path) {
