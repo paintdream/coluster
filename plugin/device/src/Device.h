@@ -124,12 +124,12 @@ namespace coluster {
 		bool TryDispatchSubmitCompletionOnHelper(SubmitCompletion& awaitable);
 		void DispatchSubmitCompletionOnHelper(SubmitCompletion& awaitable);
 
-		static Ref TypeCmdBuffer(LuaState lua, Required<RefPtr<Device>>&& self);
-		static Ref TypeImage(LuaState lua, Required<RefPtr<Device>>&& self);
-		static Ref TypeBuffer(LuaState lua, Required<RefPtr<Device>>&& self);
-		static Ref TypeShader(LuaState lua, Required<RefPtr<Device>>&& self);
-		static Ref TypePass(LuaState lua, Required<RefPtr<Device>>&& self);
-		static Ref TypeTexture(LuaState lua, Required<RefPtr<Device>>&& self);
+		Ref TypeCmdBuffer(LuaState lua);
+		Ref TypeImage(LuaState lua);
+		Ref TypeBuffer(LuaState lua);
+		Ref TypeShader(LuaState lua);
+		Ref TypePass(LuaState lua);
+		Ref TypeTexture(LuaState lua);
 
 	protected:
 		VkInstance instance = VK_NULL_HANDLE;

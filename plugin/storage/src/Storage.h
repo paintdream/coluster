@@ -72,9 +72,7 @@ namespace coluster {
 		bool Initialize(std::string_view baseArchive);
 		void Uninitialize();
 
-		static Ref TypeFile(LuaState lua, Required<RefPtr<Storage>>&& self);
-		static Ref TypeTexture(LuaState lua, Required<RefPtr<Storage>>&& self);
-		static Ref TypeDatabase(LuaState lua, Required<RefPtr<Storage>>&& self);
+		Ref TypeFile(LuaState lua);
 
 		std::vector<std::string> ListDirectory(std::string_view path);
 		bool Exists(std::string_view path);

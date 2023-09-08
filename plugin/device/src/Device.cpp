@@ -415,44 +415,44 @@ namespace coluster {
 #include "Texture.h"
 
 namespace coluster {
-	Ref Device::TypeCmdBuffer(LuaState lua, Required<RefPtr<Device>>&& self) {
-		Ref type = lua.make_type<CmdBuffer>("CmdBuffer", std::ref(*self.get()));
-		type.set(lua, "__host", std::move(self.get()));
+	Ref Device::TypeCmdBuffer(LuaState lua) {
+		Ref type = lua.make_type<CmdBuffer>("CmdBuffer", std::ref(*this));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this()));
 		return type;
 	}
 
-	Ref Device::TypeImage(LuaState lua, Required<RefPtr<Device>>&& self) {
-		Ref type = lua.make_type<Image>("Image", std::ref(*self.get()));
-		type.set(lua, "__host", std::move(self.get()));
+	Ref Device::TypeImage(LuaState lua) {
+		Ref type = lua.make_type<Image>("Image", std::ref(*this));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this()));
 		return type;
 	}
 
-	Ref Device::TypeBuffer(LuaState lua, Required<RefPtr<Device>>&& self) {
-		Ref type = lua.make_type<Buffer>("Buffer", std::ref(*self.get()));
-		type.set(lua, "__host", std::move(self.get()));
+	Ref Device::TypeBuffer(LuaState lua) {
+		Ref type = lua.make_type<Buffer>("Buffer", std::ref(*this));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this()));
 		return type;
 	}
 
-	Ref Device::TypeShader(LuaState lua, Required<RefPtr<Device>>&& self) {
-		Ref type = lua.make_type<Shader>("Shader", std::ref(*self.get()));
-		type.set(lua, "__host", std::move(self.get()));
+	Ref Device::TypeShader(LuaState lua) {
+		Ref type = lua.make_type<Shader>("Shader", std::ref(*this));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this()));
 		return type;
 	}
 
-	Ref Device::TypePass(LuaState lua, Required<RefPtr<Device>>&& self) {
-		Ref type = lua.make_type<Pass>("Pass", std::ref(*self.get()));
-		type.set(lua, "__host", std::move(self.get()));
+	Ref Device::TypePass(LuaState lua) {
+		Ref type = lua.make_type<Pass>("Pass", std::ref(*this));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this()));
 		return type;
 	}
 
-	Ref Device::TypeTexture(LuaState lua, Required<RefPtr<Device>>&& self) {
-		if (!self.get()->storage) {
-			LuaState::log_error(lua.get_state(), "[ERROR] Device::TypeTexture() -> Must call Initialize() to pass storage instance before calling me (%p)!", self.get().get());
+	Ref Device::TypeTexture(LuaState lua) {
+		if (!storage) {
+			LuaState::log_error(lua.get_state(), "[ERROR] Device::TypeTexture() -> Must call Initialize() to pass storage instance before calling me (%p)!", this);
 			return Ref();
 		}
 
-		Ref type = lua.make_type<Texture>("Texture", std::ref(*self.get()->storage));
-		type.set(lua, "__host", std::move(self.get()));
+		Ref type = lua.make_type<Texture>("Texture", std::ref(*storage.get()));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this()));
 		return type;
 	}
 }

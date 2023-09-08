@@ -66,9 +66,8 @@ namespace coluster {
 
 		struct BufferLayout {
 			uint32_t size = 0;
-			uint32_t bindingPoint = 0;
-			bool isUniformBuffer = false;
-			bool reserved[3] = {};
+			uint32_t isUniformBuffer : 1 = 0;
+			uint32_t bindingPoint : 31 = 0;
 			std::vector<iris::iris_key_value_t<std::string_view, Variable>> variableMap;
 		};
 

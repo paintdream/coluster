@@ -164,9 +164,9 @@ namespace coluster {
 
 	}
 
-	Ref Storage::TypeFile(LuaState lua, Required<RefPtr<Storage>>&& self) {
-		Ref type = lua.make_type<File>("File", std::ref(*self.get()));
-		type.set(lua, "__host", std::move(self.get()));
+	Ref Storage::TypeFile(LuaState lua) {
+		Ref type = lua.make_type<File>("File", std::ref(*this));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this()));
 		return type;
 	}
 
