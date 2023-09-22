@@ -118,8 +118,15 @@ namespace coluster {
 			return scriptWarp.get();
 		}
 
+		const std::vector<std::shared_ptr<Warp>>& GetSharedWarps() const noexcept {
+			return sharedWarps;
+		}
+
 	protected:
+		void SetupSharedWarps(size_t count);
+
 		std::unique_ptr<Warp> scriptWarp;
+		std::vector<std::shared_ptr<Warp>> sharedWarps;
 		MemoryQuota memoryQuota;
 		MemoryQuotaQueue memoryQuotaQueue;
 	};
@@ -303,7 +310,6 @@ namespace coluster {
 		static Guid Generate() noexcept;
 	};
 }
-
 
 namespace iris {
 	declare_shared_static_instance(coluster::Warp::Base*);

@@ -31,6 +31,13 @@ namespace coluster {
 		return memoryQuotaQueue;
 	}
 
+	void AsyncWorker::SetupSharedWarps(size_t count) {
+		sharedWarps.resize(count);
+		for (size_t i = 0; i < count; i++) {
+			sharedWarps[i] = std::make_shared<Warp>(*this);
+		}
+	}
+
 	void AsyncWorker::Synchronize(LuaState lua, Warp* warp) {
 		if (scriptWarp) {
 			assert(Warp::get_current_warp() == scriptWarp.get());

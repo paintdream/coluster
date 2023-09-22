@@ -154,6 +154,7 @@ bool Coluster::Start(LuaState lua, size_t threadCount) {
 	}
 
 	count = std::max(count, iris::iris_verify_cast<size_t>(Priority_Count)); // at least Priority_Count threads
+	AsyncWorker::SetupSharedWarps(count);
 	AsyncWorker::resize(count);
 
 	Status expected = Status_Ready;
@@ -584,6 +585,7 @@ bool Coluster::Join(LuaState lua, Ref&& finalizer, bool enableConsole) {
 
 	mainThreadIndex = ~size_t(0);
 	AsyncWorker::make_current(mainThreadIndex);
+	sharedWarps.clear();
 	while (!scriptWarp->join()) {}
 
 	if (finalizer) {
