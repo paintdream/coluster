@@ -2,6 +2,7 @@
 #include "../ref/iris/src/iris_common.inl" // implementation of memory management apis
 #include <chrono>
 #include <signal.h>
+#include "AsyncMap.h"
 using namespace coluster;
 
 class Coluster : public AsyncWorker {
@@ -47,9 +48,10 @@ protected:
 	Ref cothreadRef;
 	size_t mainThreadIndex = ~size_t(0);
 	std::atomic<Status> workerStatus = Status_Ready;
+	// AsyncMap<std::string, int, std::unordered_map> asyncMap;
 };
 
-Coluster::Coluster() : cothread(nullptr) {}
+Coluster::Coluster() : cothread(nullptr)/* , asyncMap(*this) */ {}
 
 // Lua stubs
 void Coluster::lua_registar(LuaState lua) {
