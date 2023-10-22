@@ -15,6 +15,6 @@ namespace coluster {
 	void Mapping::lua_finalize(LuaState lua, int index) {}
 
 	void Mapping::lua_registar(LuaState lua) {
-		lua.define<&Mapping::Get>("Get");
+		lua.set_current<&Mapping::Get>("Get");
 	}
 }

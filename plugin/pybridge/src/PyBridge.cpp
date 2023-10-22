@@ -57,9 +57,9 @@ namespace coluster {
 	}
 
 	void PyBridge::lua_registar(LuaState lua) {
-		lua.define<&PyBridge::Call>("Call");
-		lua.define<&PyBridge::Import>("Import");
-		lua.define<&PyBridge::Get>("Get");
+		lua.set_current<&PyBridge::Call>("Call");
+		lua.set_current<&PyBridge::Import>("Import");
+		lua.set_current<&PyBridge::Get>("Get");
 	}
 
 	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Get(LuaState lua, std::string_view name) {

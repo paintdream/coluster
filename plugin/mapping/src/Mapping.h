@@ -25,7 +25,6 @@
 namespace coluster {
 	class Mapping {
 	public:
-		using PoolBase = Pool<Mapping, lua_State*, 256>;
 		Mapping(AsyncWorker& asyncWorker);
 		~Mapping() noexcept;
 

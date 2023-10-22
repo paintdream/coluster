@@ -267,10 +267,10 @@ namespace coluster {
 	}
 
 	void Image::lua_registar(LuaState lua) {
-		lua.define<&Image::Initialize>("Initialize");
-		lua.define<&Image::Uninitialize>("Uninitialize");
-		lua.define<&Image::Upload>("Upload");
-		lua.define<&Image::Download>("Download");
-		lua.define("ImageType", imageTypeConstants);
+		lua.set_current<&Image::Initialize>("Initialize");
+		lua.set_current<&Image::Uninitialize>("Uninitialize");
+		lua.set_current<&Image::Upload>("Upload");
+		lua.set_current<&Image::Download>("Download");
+		lua.set_current("ImageType", imageTypeConstants);
 	}
 }

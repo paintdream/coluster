@@ -91,20 +91,20 @@ namespace coluster {
 	}
 
 	void Storage::lua_registar(LuaState lua) {
-		lua.define<&Storage::TypeFile>("TypeFile");
-		lua.define<&Storage::MakeDirectory>("MakeDirectory");
-		lua.define<&Storage::ListDirectory>("ListDirectory");
-		lua.define<&Storage::CreateDirectories>("CreateDirectories");
-		lua.define<&Storage::GetFileSize>("GetFileSize");
-		lua.define<&Storage::ResizeFile>("ResizeFile");
-		lua.define<&Storage::Exists>("Exists");
-		lua.define<&Storage::IsDirectory>("IsDirectory");
-		lua.define<&Storage::Remove>("Remove");
-		lua.define<&Storage::RemoveAll>("RemoveAll");
-		lua.define<&Storage::Rename>("Rename");
+		lua.set_current<&Storage::TypeFile>("TypeFile");
+		lua.set_current<&Storage::MakeDirectory>("MakeDirectory");
+		lua.set_current<&Storage::ListDirectory>("ListDirectory");
+		lua.set_current<&Storage::CreateDirectories>("CreateDirectories");
+		lua.set_current<&Storage::GetFileSize>("GetFileSize");
+		lua.set_current<&Storage::ResizeFile>("ResizeFile");
+		lua.set_current<&Storage::Exists>("Exists");
+		lua.set_current<&Storage::IsDirectory>("IsDirectory");
+		lua.set_current<&Storage::Remove>("Remove");
+		lua.set_current<&Storage::RemoveAll>("RemoveAll");
+		lua.set_current<&Storage::Rename>("Rename");
 	}
 
-	size_t Storage::GetFileSize(std::string_view path) {
+	uint64_t Storage::GetFileSize(std::string_view path) {
 		return std::filesystem::file_size(path);
 	}
 
@@ -132,7 +132,7 @@ namespace coluster {
 		return std::filesystem::remove(path);
 	}
 
-	size_t Storage::RemoveAll(std::string_view path) {
+	uint64_t Storage::RemoveAll(std::string_view path) {
 		return std::filesystem::remove_all(path);
 	}
 

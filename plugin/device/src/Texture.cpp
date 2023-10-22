@@ -8,13 +8,13 @@
 
 namespace coluster {
 	void Texture::lua_registar(LuaState lua) {
-		lua.define<&Texture::Load>("Load");
-		lua.define<&Texture::Save>("Save");
-		lua.define<&Texture::Upload>("Upload");
-		lua.define<&Texture::Download>("Download");
-		lua.define<&Texture::GetPixels>("GetPixels");
-		lua.define<&Texture::SetPixels>("GetPixels");
-		lua.define<&Texture::GetResolution>("GetResolution");
+		lua.set_current<&Texture::Load>("Load");
+		lua.set_current<&Texture::Save>("Save");
+		lua.set_current<&Texture::Upload>("Upload");
+		lua.set_current<&Texture::Download>("Download");
+		lua.set_current<&Texture::GetPixels>("GetPixels");
+		lua.set_current<&Texture::SetPixels>("GetPixels");
+		lua.set_current<&Texture::GetResolution>("GetResolution");
 	}
 
 	Texture::Texture(Storage& s) noexcept : storage(s) {}

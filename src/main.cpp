@@ -55,20 +55,20 @@ Coluster::Coluster() : cothread(nullptr)/* , asyncMap(*this) */ {}
 
 // Lua stubs
 void Coluster::lua_registar(LuaState lua) {
-	lua.define<&Coluster::Start>("Start");
-	lua.define<&Coluster::Join>("Join");
-	lua.define<&Coluster::Post>("Post");
-	lua.define<&Coluster::Poll>("Poll");
-	lua.define<&Coluster::Stop>("Stop");
-	lua.define<&Coluster::Sleep>("Sleep");
-	lua.define<&Coluster::GetProfile>("GetProfile");
-	lua.define<&Coluster::GetQuota>("GetQuota");
-	lua.define<&Coluster::GetStatus>("GetStatus");
-	lua.define<&Coluster::GetHardwareConcurrency>("GetHardwareConcurrency");
-	lua.define<&Coluster::GetWorkerThreadCount>("GetWorkerThreadCount");
-	lua.define<&Coluster::IsWorkerTerminated>("IsWorkerTerminated");
-	lua.define<&Coluster::GetTaskCount>("GetTaskCount");
-	lua.define<&Coluster::IsMainThread>("IsMainThread");
+	lua.set_current<&Coluster::Start>("Start");
+	lua.set_current<&Coluster::Join>("Join");
+	lua.set_current<&Coluster::Post>("Post");
+	lua.set_current<&Coluster::Poll>("Poll");
+	lua.set_current<&Coluster::Stop>("Stop");
+	lua.set_current<&Coluster::Sleep>("Sleep");
+	lua.set_current<&Coluster::GetProfile>("GetProfile");
+	lua.set_current<&Coluster::GetQuota>("GetQuota");
+	lua.set_current<&Coluster::GetStatus>("GetStatus");
+	lua.set_current<&Coluster::GetHardwareConcurrency>("GetHardwareConcurrency");
+	lua.set_current<&Coluster::GetWorkerThreadCount>("GetWorkerThreadCount");
+	lua.set_current<&Coluster::IsWorkerTerminated>("IsWorkerTerminated");
+	lua.set_current<&Coluster::GetTaskCount>("GetTaskCount");
+	lua.set_current<&Coluster::IsMainThread>("IsMainThread");
 }
 
 bool Coluster::IsMainThread() const noexcept {
@@ -156,13 +156,14 @@ bool Coluster::Start(LuaState lua, size_t threadCount) {
 	}
 
 	count = std::max(count, iris::iris_verify_cast<size_t>(Priority_Count)); // at least Priority_Count threads
-	AsyncWorker::SetupSharedWarps(count);
-	AsyncWorker::resize(count);
 
 	Status expected = Status_Ready;
 	if (workerStatus.compare_exchange_strong(expected, Status_Running, std::memory_order_relaxed)) {
+		AsyncWorker::resize(count);
 		mainThreadIndex = AsyncWorker::append(std::thread()); // for main thread polling
 		AsyncWorker::start();
+		AsyncWorker::SetupSharedWarps(count);
+
 		scriptWarp = std::make_unique<Warp>(*this);
 		scriptWarp->BindLuaRoot(cothread);
 		scriptWarp->Acquire();

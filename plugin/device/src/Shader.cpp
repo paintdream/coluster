@@ -489,13 +489,13 @@ namespace coluster {
 	}
 
 	void Shader::lua_registar(LuaState lua) {
-		lua.define<&Shader::Initialize>("Initialize");
-		lua.define<&Shader::Uninitialize>("Uninitialize");
-		lua.define<&Shader::GetBufferSize>("GetBufferSize");
-		lua.define<&Shader::FormatIntegers>("FormatIntegers");
-		lua.define<&Shader::FormatFloats>("FormatFloats");
-		lua.define<&Shader::FormatBuffer>("FormatBuffer");
-		lua.define<&Shader::IsBufferLayoutCompatible>("IsBufferLayoutCompatible");
-		lua.define<&Shader::GetLocalSize>("GetLocalSize");
+		lua.set_current<&Shader::Initialize>("Initialize");
+		lua.set_current<&Shader::Uninitialize>("Uninitialize");
+		lua.set_current<&Shader::GetBufferSize>("GetBufferSize");
+		lua.set_current<&Shader::FormatIntegers>("FormatIntegers");
+		lua.set_current<&Shader::FormatFloats>("FormatFloats");
+		lua.set_current<&Shader::FormatBuffer>("FormatBuffer");
+		lua.set_current<&Shader::IsBufferLayoutCompatible>("IsBufferLayoutCompatible");
+		lua.set_current<&Shader::GetLocalSize>("GetLocalSize");
 	}
 }

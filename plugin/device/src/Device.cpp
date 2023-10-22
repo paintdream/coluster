@@ -386,14 +386,14 @@ namespace coluster {
 	};
 
 	void Device::lua_registar(LuaState lua) {
-		lua.define<&Device::Initialize>("Initialize");
-		lua.define<&Device::TypeCmdBuffer>("TypeCmdBuffer");
-		lua.define<&Device::TypeImage>("TypeImage");
-		lua.define<&Device::TypeBuffer>("TypeBuffer");
-		lua.define<&Device::TypeShader>("TypeShader");
-		lua.define<&Device::TypePass>("TypePass");
-		lua.define<&Device::TypeTexture>("TypeTexture");
-		lua.define("Format", formatConstants);
+		lua.set_current<&Device::Initialize>("Initialize");
+		lua.set_current<&Device::TypeCmdBuffer>("TypeCmdBuffer");
+		lua.set_current<&Device::TypeImage>("TypeImage");
+		lua.set_current<&Device::TypeBuffer>("TypeBuffer");
+		lua.set_current<&Device::TypeShader>("TypeShader");
+		lua.set_current<&Device::TypePass>("TypePass");
+		lua.set_current<&Device::TypeTexture>("TypeTexture");
+		lua.set_current("Format", formatConstants);
 	}
 
 	void Device::lua_finalize(LuaState lua, int index) {

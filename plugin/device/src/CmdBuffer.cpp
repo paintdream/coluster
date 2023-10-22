@@ -133,6 +133,6 @@ namespace coluster {
 	}
 
 	void CmdBuffer::lua_registar(LuaState lua) {
-		lua.define<&CmdBuffer::Submit>("Submit");
+		lua.set_current<&CmdBuffer::Submit>("Submit");
 	}
 }

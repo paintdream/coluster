@@ -16,12 +16,12 @@ static int sys_io_uring_enter(int ring_fd, unsigned int to_submit, unsigned int 
 
 namespace coluster {
 	void File::lua_registar(LuaState lua) {
-		lua.define<&File::Open>("Open");
-		lua.define<&File::Read>("Read");
-		lua.define<&File::Write>("Write");
-		lua.define<&File::GetSize>("GetSize");
-		lua.define<&File::Flush>("Flush");
-		lua.define<&File::Close>("Close");
+		lua.set_current<&File::Open>("Open");
+		lua.set_current<&File::Read>("Read");
+		lua.set_current<&File::Write>("Write");
+		lua.set_current<&File::GetSize>("GetSize");
+		lua.set_current<&File::Flush>("Flush");
+		lua.set_current<&File::Close>("Close");
 	}
 
 	File::File(Storage& st) noexcept : storage(st),

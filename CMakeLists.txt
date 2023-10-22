@@ -59,6 +59,7 @@ FILE (GLOB_RECURSE COLUSTER_SRC
 	"${PROJECT_SOURCE_DIR}/ref/iris/iris_lua.h"
 	"${PROJECT_SOURCE_DIR}/ref/iris/iris_dispatcher.h"
 	"${PROJECT_SOURCE_DIR}/ref/iris/iris_coroutine.h"
+	"${PROJECT_SOURCE_DIR}/ref/iris/iris_system.h"
 	"${PROJECT_SOURCE_DIR}/ref/iris/iris_common.h"
 	"${PROJECT_SOURCE_DIR}/ref/iris/iris_common.inl"
 	"${PROJECT_SOURCE_DIR}/app/*.lua"

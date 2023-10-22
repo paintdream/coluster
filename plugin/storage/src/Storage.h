@@ -76,13 +76,13 @@ namespace coluster {
 
 		std::vector<std::string> ListDirectory(std::string_view path);
 		bool Exists(std::string_view path);
-		size_t GetFileSize(std::string_view path);
+		uint64_t GetFileSize(std::string_view path);
 		void ResizeFile(std::string_view path, size_t newSize);
 		bool CreateDirectories(std::string_view path);
 		bool MakeDirectory(std::string_view path);
 		bool IsDirectory(std::string_view path);
 		bool Remove(std::string_view path);
-		size_t RemoveAll(std::string_view path);
+		uint64_t RemoveAll(std::string_view path);
 		void Rename(std::string_view oldName, std::string_view newName);
 		void DispatchOperation();
 

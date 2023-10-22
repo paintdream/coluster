@@ -71,15 +71,15 @@ namespace coluster {
 		LuaState::stack_guard_t guard(L);
 		LuaState lua(L);
 		lua.set_registry(GetCacheKey(), lua.make_table([](LuaState lua) {
-			lua.define_metatable(lua.make_table([](LuaState lua) {
-				lua.define("__mode", "v");
+			lua.set_current_metatable(lua.make_table([](LuaState lua) {
+				lua.set_current("__mode", "v");
 			}));
 		}));
 
 		lua.set_registry(GetBindKey(), lua.make_table([](LuaState lua) {
-			lua.define("trace", lua.make_table([](LuaState lua) {
-				lua.define_metatable(lua.make_table([](LuaState lua) {
-					lua.define("__mode", "k");
+			lua.set_current("trace", lua.make_table([](LuaState lua) {
+				lua.set_current_metatable(lua.make_table([](LuaState lua) {
+					lua.set_current("__mode", "k");
 				}));
 			}));
 		}));

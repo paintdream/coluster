@@ -22,11 +22,11 @@ namespace coluster {
 	}
 
 	void Channel::lua_registar(LuaState lua) {
-		lua.define<&Channel::Setup>("Setup");
-		lua.define<&Channel::Connect>("Connect");
-		lua.define<&Channel::Close>("Close");
-		lua.define<&Channel::Send>("Send");
-		lua.define<&Channel::Recv>("Recv");
+		lua.set_current<&Channel::Setup>("Setup");
+		lua.set_current<&Channel::Connect>("Connect");
+		lua.set_current<&Channel::Close>("Close");
+		lua.set_current<&Channel::Send>("Send");
+		lua.set_current<&Channel::Recv>("Recv");
 	}
 
 	Coroutine<void> Channel::Close() noexcept {

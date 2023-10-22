@@ -245,9 +245,9 @@ namespace coluster {
 	}
 	
 	void Pass::lua_registar(LuaState lua) {
-		lua.define<&Pass::Initialize>("Initialize");
-		lua.define<&Pass::BindBuffer>("BindBuffer");
-		lua.define<&Pass::BindImage>("BindImage");
-		lua.define<&Pass::Dispatch>("Dispatch");
+		lua.set_current<&Pass::Initialize>("Initialize");
+		lua.set_current<&Pass::BindBuffer>("BindBuffer");
+		lua.set_current<&Pass::BindImage>("BindImage");
+		lua.set_current<&Pass::Dispatch>("Dispatch");
 	}
 }

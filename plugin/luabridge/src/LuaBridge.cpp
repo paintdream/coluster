@@ -163,9 +163,9 @@ namespace coluster {
 	}
 
 	void LuaBridge::lua_registar(LuaState lua) {
-		lua.define<&LuaBridge::Load>("Load");
-		lua.define<&LuaBridge::Get>("Get");
-		lua.define<&LuaBridge::Call>("Call");
+		lua.set_current<&LuaBridge::Load>("Load");
+		lua.set_current<&LuaBridge::Get>("Get");
+		lua.set_current<&LuaBridge::Call>("Call");
 	}
 
 	template <>

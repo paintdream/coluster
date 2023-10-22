@@ -198,10 +198,10 @@ namespace coluster {
 	}
 
 	void Buffer::lua_registar(LuaState lua) {
-		lua.define<&Buffer::Initialize>("Initialize");
-		lua.define<&Buffer::Uninitialize>("Uninitialize");
-		lua.define<&Buffer::Upload>("Upload");
-		lua.define<&Buffer::Download>("Download");
+		lua.set_current<&Buffer::Initialize>("Initialize");
+		lua.set_current<&Buffer::Uninitialize>("Uninitialize");
+		lua.set_current<&Buffer::Upload>("Upload");
+		lua.set_current<&Buffer::Download>("Download");
 	}
 }
 

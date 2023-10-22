@@ -5,9 +5,9 @@ namespace coluster {
 	Database::Database(AsyncWorker& asyncWorker) : Warp(asyncWorker) {}
 
 	void Database::lua_registar(LuaState lua) {
-		lua.define<&Database::Initialize>("Initialize");
-		lua.define<&Database::Uninitialize>("Uninitialize");
-		lua.define<&Database::Execute>("Execute");
+		lua.set_current<&Database::Initialize>("Initialize");
+		lua.set_current<&Database::Uninitialize>("Uninitialize");
+		lua.set_current<&Database::Execute>("Execute");
 	}
 
 	Coroutine<bool> Database::Initialize(std::string_view path, bool createIfNotExist) {
