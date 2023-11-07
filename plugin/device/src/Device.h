@@ -5,14 +5,45 @@
 
 #pragma once
 
-#include "Pipeline.h"
+#include "../../../src/Coluster.h"
+#include <vulkan/vulkan.h>
+
+#if !COLUSTER_MONOLITHIC
+#ifdef DEVICE_EXPORT
+	#ifdef __GNUC__
+		#define DEVICE_API __attribute__ ((visibility ("default")))
+	#else
+		#define DEVICE_API __declspec(dllexport) // Note: actually gcc seems to also supports this syntax.
+	#endif
+#else
+	#ifdef __GNUC__
+		#define DEVICE_API __attribute__ ((visibility ("default")))
+	#else
+		#define DEVICE_API __declspec(dllimport) // Note: actually gcc seems to also supports this syntax.
+	#endif
+#endif
+#else
+#define DEVICE_API
+#endif
 
 // forward declaration of VMA
 typedef struct VmaAllocator_T* VmaAllocator;
+typedef struct VmaAllocation_T* VmaAllocation;
+
+#define DEFINE_MAP_ENTRY(f) { #f, VK_##f }
 
 namespace coluster {
 	// awaitable completion of Queue
 	class Device;
+	class DeviceObject : protected EnableReadWriteFence {
+	public:
+		DeviceObject(Device& device) noexcept;
+		Device& GetDevice() noexcept { return device; }
+
+	protected:
+		Device& device;
+	};
+
 	class SubmitCompletion : public iris::iris_sync_t<Warp, AsyncWorker> {
 	public:
 		SubmitCompletion(const std::source_location& source, Device& worker, std::span<VkCommandBuffer> commandBuffers);

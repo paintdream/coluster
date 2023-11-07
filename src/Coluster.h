@@ -22,19 +22,26 @@
 
 #ifdef COLUSTER_EXPORT
 	#ifdef __GNUC__
-		#define COLUSTER_API __attribute__ ((visibility ("default")))
+		#define COLUSTER_CORE_API __attribute__ ((visibility ("default")))
 	#else
-		#define COLUSTER_API __declspec(dllexport) // Note: actually gcc seems to also supports this syntax.
+		#define COLUSTER_CORE_API __declspec(dllexport) // Note: actually gcc seems to also supports this syntax.
 	#endif
 #else
 	#ifdef __GNUC__
-		#define COLUSTER_API __attribute__ ((visibility ("default")))
+		#define COLUSTER_CORE_API __attribute__ ((visibility ("default")))
 	#else
-		#define COLUSTER_API __declspec(dllimport) // Note: actually gcc seems to also supports this syntax.
+		#define COLUSTER_CORE_API __declspec(dllimport) // Note: actually gcc seems to also supports this syntax.
 	#endif
 #endif
 
+#if !COLUSTER_MONOLITHIC
+#define COLUSTER_API COLUSTER_CORE_API
+#else
+#define COLUSTER_API
+#endif
+
 #define IRIS_SHARED_LIBRARY_DECORATOR COLUSTER_API
+
 #include "../ref/iris/src/iris_coroutine.h"
 #include "../ref/iris/src/iris_buffer.h"
 #include "../ref/iris/src/iris_lua.h"
@@ -262,7 +269,7 @@ namespace coluster {
 			return *this;
 		}
 
-		void run() noexcept(noexcept(Base::run())) {
+		void run() {
 			Base::run();
 			SetCurrentCoroutineAddress(nullptr);
 		}

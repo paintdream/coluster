@@ -3,6 +3,10 @@ if package.cpath:find(".so") and not package.cpath:find("%./lib%?%.so") then
 	print(package.cpath)
 end
 
+warn = function (message)
+	print("[Warning] " .. message)
+end
+
 local coluster = assert(require("coluster").create())
 local services = {}
 coluster:Start(4)

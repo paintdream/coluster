@@ -5,6 +5,30 @@
 #include "AsyncMap.h"
 using namespace coluster;
 
+#if LUA_VERSION_NUM <= 501
+int luaL_requiref(lua_State* L, const char* modname, lua_CFunction openf, int glb) {
+	int rawtop = lua_gettop(L);
+	lua_getglobal(L, "package");
+	if (lua_type(L, -1) == LUA_TTABLE) {
+		lua_getfield(L, -1, "loaded");
+		if (lua_type(L, -1) == LUA_TTABLE) {
+			lua_pushstring(L, modname);
+			int top = lua_gettop(L);
+			int ret = openf(L);
+			if (ret >= 1) {
+				lua_settop(L, top + 1);
+				lua_rawset(L, -3);
+			}
+		}
+	}
+
+	lua_settop(L, rawtop + 1);
+	return 1;
+}
+#endif
+
+#include "plugins.inl"
+
 class Coluster : public AsyncWorker {
 public:
 	enum Status : size_t {
@@ -167,6 +191,7 @@ bool Coluster::Start(LuaState lua, size_t threadCount) {
 		scriptWarp = std::make_unique<Warp>(*this);
 		scriptWarp->BindLuaRoot(cothread);
 		scriptWarp->Acquire();
+
 		AsyncWorker::make_current(mainThreadIndex);
 
 		return true;
@@ -221,7 +246,8 @@ bool Coluster::Stop() {
 	}
 }
 
-extern "C" COLUSTER_API int luaopen_coluster(lua_State * L) {
+extern "C" COLUSTER_CORE_API int luaopen_coluster(lua_State * L) {
+	ColusterRegisterPlugins(L);
 	return LuaState::forward(L, [](LuaState luaState) {
 		return luaState.make_type<Coluster>("Coluster");
 	});

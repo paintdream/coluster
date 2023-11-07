@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "DeviceObject.h"
+#include "Device.h"
 #include "Device.h"
 
 namespace coluster {

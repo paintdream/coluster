@@ -7,6 +7,7 @@
 
 #include "../../../src/Coluster.h"
 
+#if !COLUSTER_MONOLITHIC
 #ifdef STORAGE_EXPORT
 	#ifdef __GNUC__
 		#define STORAGE_API __attribute__ ((visibility ("default")))
@@ -19,6 +20,9 @@
 	#else
 		#define STORAGE_API __declspec(dllimport) // Note: actually gcc seems to also supports this syntax.
 	#endif
+#endif
+#else
+#define STORAGE_API
 #endif
 
 #ifdef _WIN32

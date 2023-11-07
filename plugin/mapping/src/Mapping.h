@@ -8,6 +8,7 @@
 #include "../../../src/Coluster.h"
 #include "../../../src/AsyncMap.h"
 
+#if !COLUSTER_MONOLITHIC
 #ifdef MAPPING_EXPORT
 	#ifdef __GNUC__
 		#define MAPPING_API __attribute__ ((visibility ("default")))
@@ -20,6 +21,9 @@
 	#else
 		#define MAPPING_API __declspec(dllimport) // Note: actually gcc seems to also supports this syntax.
 	#endif
+#endif
+#else
+#define MAPPING_API
 #endif
 
 namespace coluster {

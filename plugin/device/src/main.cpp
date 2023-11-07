@@ -1,4 +1,3 @@
-#include "Pipeline.h"
 #include "Device.h"
 using namespace coluster;
 

@@ -14,7 +14,7 @@ namespace coluster {
 		}
 
 		struct Awaitable : protected Warp::SwitchWarp {
-			using Base = Warp::SwitchWarp;
+			using Base = typename Warp::SwitchWarp;
 			template <typename T>
 			Awaitable(const std::source_location& source, MapType& map, Warp* target, T&& k) noexcept : Base(source, target, nullptr), asyncMap(map), key(std::forward<T>(k)) {}
 
@@ -23,7 +23,7 @@ namespace coluster {
 			}
 
 			void await_suspend(std::coroutine_handle<>&& handle) {
-				Base::await_suspend();
+				Base::await_suspend(std::move(handle));
 			}
 
 			V& await_resume() noexcept {
