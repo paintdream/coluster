@@ -1,7 +1,6 @@
 #include "Image.h"
 #include "Device.h"
 #include "CmdBuffer.h"
-#include "../ref/vulkansdk/vk_mem_alloc.h"
 
 namespace coluster {
 	static const std::unordered_map<std::string_view, VkImageType> imageTypeConstants = {

@@ -1,7 +1,6 @@
 #include "Buffer.h"
 #include "Device.h"
 #include "CmdBuffer.h"
-#include "../ref/vulkansdk/vk_mem_alloc.h"
 
 namespace coluster {
 	Buffer::Buffer(Device& dev) noexcept : DeviceObject(dev) {}

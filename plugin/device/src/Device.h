@@ -8,6 +8,9 @@
 #include "../../../src/Coluster.h"
 #include <vulkan/vulkan.h>
 
+#define VMA_VULKAN_VERSION 1002000
+#include "../ref/vulkansdk/vk_mem_alloc.h"
+
 #if !COLUSTER_MONOLITHIC
 #ifdef DEVICE_EXPORT
 	#ifdef __GNUC__
@@ -25,10 +28,6 @@
 #else
 #define DEVICE_API
 #endif
-
-// forward declaration of VMA
-typedef struct VmaAllocator_T* VmaAllocator;
-typedef struct VmaAllocation_T* VmaAllocation;
 
 #define DEFINE_MAP_ENTRY(f) { #f, VK_##f }
 
@@ -109,6 +108,7 @@ namespace coluster {
 		// SubmitCmdBuffers() can be called from any warp
 		SubmitCompletion SubmitCmdBuffers(const std::source_location& source, std::span<VkCommandBuffer> commandBuffers);
 		void Initialize(Required<RefPtr<Storage>> storage);
+		Ref QueryRuntimeInfo(LuaState lua);
 
 		// Helper functions
 		void Verify(const char* message, VkResult res) noexcept;

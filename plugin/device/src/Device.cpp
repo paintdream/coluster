@@ -1,5 +1,4 @@
 #define VMA_IMPLEMENTATION
-#include "../ref/vulkansdk/vk_mem_alloc.h"
 #include "../ref/vulkansdk/Public/ShaderLang.h"
 
 #include "Device.h"
@@ -388,6 +387,7 @@ namespace coluster {
 
 	void Device::lua_registar(LuaState lua) {
 		lua.set_current<&Device::Initialize>("Initialize");
+		lua.set_current<&Device::QueryRuntimeInfo>("QueryRuntimeInfo");
 		lua.set_current<&Device::TypeCmdBuffer>("TypeCmdBuffer");
 		lua.set_current<&Device::TypeImage>("TypeImage");
 		lua.set_current<&Device::TypeBuffer>("TypeBuffer");
@@ -404,6 +404,15 @@ namespace coluster {
 
 	void Device::Initialize(Required<RefPtr<Storage>> s) {
 		storage = std::move(s.get());
+	}
+
+	Ref Device::QueryRuntimeInfo(LuaState lua) {
+		return lua.make_table([this](LuaState lua) {
+			lua.set_current("instance", reinterpret_cast<void*>(instance));
+			lua.set_current("device", reinterpret_cast<void*>(device));
+			lua.set_current("queue", reinterpret_cast<void*>(queue));
+			lua.set_current("mainCommandPool", reinterpret_cast<void*>(mainCommandPool));
+		});
 	}
 }
 
