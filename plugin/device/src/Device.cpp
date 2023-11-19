@@ -135,11 +135,23 @@ namespace coluster {
 
 			uint32_t family = ~(uint32_t)0;
 			vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &count, &queues[0]);
-			// prepare pure compute
+
+			// try prepare both compute and graphics
+			uint32_t bothBit = VK_QUEUE_COMPUTE_BIT | VK_QUEUE_GRAPHICS_BIT;
 			for (uint32_t j = count; j != 0; j--) {
-				if (queues[j - 1].queueFlags & VK_QUEUE_COMPUTE_BIT) {
+				if ((queues[j - 1].queueFlags & bothBit) == bothBit) {
 					family = j - 1;
 					break;
+				}
+			}
+
+			// prepare pure compute
+			if (family == ~(uint32_t)0) {
+				for (uint32_t j = count; j != 0; j--) {
+					if (queues[j - 1].queueFlags & VK_QUEUE_COMPUTE_BIT) {
+						family = j - 1;
+						break;
+					}
 				}
 			}
 
