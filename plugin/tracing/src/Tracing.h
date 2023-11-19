@@ -27,7 +27,7 @@
 #endif
 
 namespace coluster {
-	class Tracing : protected Warp {
+	class Tracing : public Object, protected Warp {
 	public:
 		Tracing(AsyncWorker& asyncWorker);
 		~Tracing() noexcept;

@@ -30,7 +30,7 @@ struct sqlite3_stmt;
 
 namespace coluster {
 	class Storage;
-	class Database : protected Warp, public EnableReadWriteFence {
+	class Database : public Object, protected Warp {
 	public:
 		Database(AsyncWorker& asyncWorker);
 		Warp& GetWarp() noexcept { return *this; }

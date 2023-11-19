@@ -316,6 +316,13 @@ namespace coluster {
 		Guid(uint64_t a = 0, uint64_t b = 0) noexcept : std::pair<uint64_t, uint64_t>(a, b) {}
 		static Guid Generate() noexcept;
 	};
+
+	class Object : protected EnableReadWriteFence {
+	public:
+		COLUSTER_API Object() noexcept;
+		COLUSTER_API virtual ~Object() noexcept;
+		COLUSTER_API virtual Warp* GetObjectWarp() const noexcept;
+	};
 }
 
 namespace iris {

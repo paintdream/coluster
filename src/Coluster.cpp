@@ -210,4 +210,11 @@ namespace coluster {
 		return guid;
 #endif
 	}
+	
+	Object::Object() noexcept {}
+	Object::~Object() noexcept {}
+
+	Warp* Object::GetObjectWarp() const noexcept {
+		return nullptr;
+	}
 }

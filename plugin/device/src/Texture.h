@@ -12,7 +12,7 @@ namespace coluster {
 	class CmdBuffer;
 	class Image;
 	class Storage;
-	class Texture : public EnableReadWriteFence {
+	class Texture : public Object {
 	public:
 		Texture(Storage& storage) noexcept;
 		~Texture() noexcept;

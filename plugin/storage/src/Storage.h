@@ -34,7 +34,7 @@ struct io_uring_cqe;
 namespace coluster {
 	class File;
 	class Texture;
-	class Storage {
+	class Storage : public Object {
 	public:
 #ifdef _WIN32
 #else

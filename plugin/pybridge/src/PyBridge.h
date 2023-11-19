@@ -27,7 +27,7 @@
 
 typedef struct _object PyObject;
 namespace coluster {
-	class PyBridge : protected Warp, public EnableReadWriteFence {
+	class PyBridge : public Object, protected Warp {
 	public:
 		PyBridge(AsyncWorker& asyncWorker);
 		~PyBridge() noexcept;

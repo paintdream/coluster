@@ -27,7 +27,7 @@
 #endif
 
 namespace coluster {
-	class Mapping {
+	class Mapping : public Object {
 	public:
 		Mapping(AsyncWorker& asyncWorker);
 		~Mapping() noexcept;

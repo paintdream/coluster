@@ -26,7 +26,7 @@
 #endif
 
 namespace coluster {
-	class LuaBridge : protected Warp, public Pool<LuaBridge, lua_State*, 256> {
+	class LuaBridge : public Object, protected Warp, public Pool<LuaBridge, lua_State*, 256> {
 	public:
 		using PoolBase = Pool<LuaBridge, lua_State*, 256>;
 		LuaBridge(AsyncWorker& asyncWorker);

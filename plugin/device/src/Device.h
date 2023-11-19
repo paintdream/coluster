@@ -34,7 +34,7 @@
 namespace coluster {
 	// awaitable completion of Queue
 	class Device;
-	class DeviceObject : protected EnableReadWriteFence {
+	class DeviceObject : public Object {
 	public:
 		DeviceObject(Device& device) noexcept;
 		Device& GetDevice() noexcept { return device; }
@@ -97,7 +97,7 @@ namespace coluster {
 	using FencePool = Pool<Device, ResourceFence>;
 
 	class Storage;
-	class Device : protected Warp, public FencePool {
+	class Device : public Object, protected Warp, public FencePool {
 	public:
 		Device(AsyncWorker& asyncWorker, uint32_t maxDescriptorSetCount = 1024, uint32_t maxDescriptorCount = 4096);
 		~Device();

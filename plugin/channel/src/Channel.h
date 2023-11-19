@@ -26,7 +26,7 @@
 #endif
 
 namespace coluster {
-	class Channel : protected Warp, protected EnableReadWriteFence {
+	class Channel : public Object, protected Warp {
 	public:
 		Channel(AsyncWorker& asyncWorker) noexcept;
 		~Channel() noexcept;

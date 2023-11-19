@@ -26,7 +26,7 @@
 #endif
 
 namespace coluster {
-	class Graphic {
+	class Graphic : public Object {
 	public:
 		Graphic(AsyncWorker& asyncWorker);
 		~Graphic() noexcept;
