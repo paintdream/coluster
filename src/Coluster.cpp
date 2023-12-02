@@ -70,27 +70,28 @@ namespace coluster {
 		// create cache table
 		LuaState::stack_guard_t guard(L);
 		LuaState lua(L);
-		lua.set_registry(GetCacheKey(), lua.make_table([](LuaState lua) {
-			lua.set_current_metatable(lua.make_table([](LuaState lua) {
-				lua.set_current("__mode", "v");
-			}));
-		}));
 
-		lua.set_registry(GetBindKey(), lua.make_table([](LuaState lua) {
+		registryTable = lua.make_table([](LuaState lua) {
 			lua.set_current("trace", lua.make_table([](LuaState lua) {
 				lua.set_current_metatable(lua.make_table([](LuaState lua) {
 					lua.set_current("__mode", "k");
 				}));
 			}));
-		}));
+
+			lua.set_current("cache", lua.make_table([](LuaState lua) {
+				lua.set_current_metatable(lua.make_table([](LuaState lua) {
+					lua.set_current("__mode", "v");
+				}));
+			}));
+
+			lua.set_current("persist", lua.make_table([](LuaState lua) {}));
+		});
 	}
 
 	void Warp::UnbindLuaRoot(lua_State* L) noexcept {
 		LuaState::stack_guard_t guard(L);
 		LuaState lua(L);
-		lua.set_registry(GetCacheKey(), nullptr);
-		lua.set_registry(GetBindKey(), nullptr);
-
+		lua.deref(std::move(registryTable));
 		hostState = nullptr;
 	}
 
@@ -106,10 +107,11 @@ namespace coluster {
 				Warp* scriptWarp = Warp::get_current_warp();
 				lua_State* L = scriptWarp->hostState;
 				LuaState::stack_guard_t guard(L);
-				lua_pushlightuserdata(L, scriptWarp->GetBindKey());
-				lua_rawget(L, LUA_REGISTRYINDEX);
-				lua_pushliteral(L, "trace");
-				lua_rawget(L, -2);
+				LuaState lua(L);
+
+				Ref trace = std::move(*scriptWarp->GetProfileTable().get(lua, "trace"));
+
+				lua_rawgeti(L, LUA_REGISTRYINDEX, trace.get());
 				lua_pushlightuserdata(L, address);
 				lua_rawget(L, LUA_REGISTRYINDEX); // get thread
 
@@ -117,10 +119,12 @@ namespace coluster {
 					lua_pushfstring(L, "<<Wait>> Warp [%p] ==> Warp [%p][%p] at %s <%s:%d>", from, target, other, source.function_name(), source.file_name(), source.line());
 					// fprintf(stdout, "%s\n", lua_tostring(L, -1));
 					lua_rawset(L, -3);
-					lua_pop(L, 2);
+					lua_pop(L, 1);
 				} else {
-					lua_pop(L, 3);
+					lua_pop(L, 2);
 				}
+
+				lua.deref(std::move(trace));
 			});
 		}
 	}
@@ -136,10 +140,10 @@ namespace coluster {
 				Warp* scriptWarp = Warp::get_current_warp();
 				lua_State* L = scriptWarp->hostState;
 				LuaState::stack_guard_t guard(L);
-				lua_pushlightuserdata(L, scriptWarp->GetBindKey());
-				lua_rawget(L, LUA_REGISTRYINDEX);
-				lua_pushliteral(L, "trace");
-				lua_rawget(L, -2);
+				LuaState lua(L);
+
+				Ref trace = std::move(*scriptWarp->GetProfileTable().get(lua, "trace"));
+				lua_rawgeti(L, LUA_REGISTRYINDEX, trace.get());
 				lua_pushlightuserdata(L, address);
 				lua_rawget(L, LUA_REGISTRYINDEX); // get thread
 
@@ -147,10 +151,12 @@ namespace coluster {
 					lua_pushfstring(L, "<<Running>> Warp [%p] ==> Warp [%p][%p]", from, target, other);
 					// fprintf(stdout, "%s\n", lua_tostring(L, -1));
 					lua_rawset(L, -3);
-					lua_pop(L, 2);
+					lua_pop(L, 1);
 				} else {
-					lua_pop(L, 3);
+					lua_pop(L, 2);
 				}
+
+				lua.deref(std::move(trace));
 			});
 		}
 	}

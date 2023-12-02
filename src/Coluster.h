@@ -161,33 +161,8 @@ namespace coluster {
 		COLUSTER_API void Acquire();
 		COLUSTER_API void Release();
 
-		template <typename value_t, typename key_t>
-		void SetBindTable(key_t&& key, value_t&& value) noexcept {
-			SetTable(GetBindKey(), std::forward<key_t>(key), std::forward<value_t>(value));
-		}
-
-		template <typename value_t, typename key_t>
-		value_t GetBindTable(key_t&& key) {
-			return GetTable<value_t>(GetBindKey(), std::forward<key_t>(key));
-		}
-
-		template <typename value_t, typename key_t>
-		void SetCacheTable(key_t&& key, value_t&& value) noexcept {
-			SetTable(GetCacheKey(), std::forward<key_t>(key), std::forward<value_t>(value));
-		}
-
-		template <typename value_t, typename key_t>
-		value_t GetCacheTable(key_t&& key) {
-			return GetTable<value_t>(GetCacheKey(), std::forward<key_t>(key));
-		}
-
-		void* GetCacheKey() noexcept {
-			return &hostState;
-		}
-
-		void* GetBindKey() noexcept {
-			assert(this != GetCacheKey());
-			return this;
+		const Ref& GetProfileTable() const noexcept {
+			return registryTable;
 		}
 
 		COLUSTER_API static void ChainWait(const std::source_location& source, Warp* from, Warp* target, Warp* other);
@@ -195,7 +170,7 @@ namespace coluster {
 
 	protected:
 		template <typename value_t, typename key_t>
-		void SetTable(void* tableKey, key_t&& key, value_t&& value) noexcept {
+		void SetTable(void* tableKey, std::string_view category, key_t&& key, value_t&& value) noexcept {
 			lua_State* L = hostState;
 			LuaState lua(L);
 			LuaState::stack_guard_t guard(L);
@@ -225,6 +200,7 @@ namespace coluster {
 
 	protected:
 		lua_State* hostState = nullptr;
+		Ref registryTable;
 	};
 
 	using RootAlloator = std::remove_reference_t<decltype(coluster::AsyncWorker::task_allocator_t::get_root_allocator())>;

@@ -210,11 +210,8 @@ AsyncWorker::MemoryQuota::amount_t Coluster::GetQuota() noexcept {
 
 Ref Coluster::GetProfile(LuaState lua) {
 	if (scriptWarp) {
-		lua_State* L = lua.get_state();
-		LuaState::stack_guard_t guard(L);
-		lua_pushlightuserdata(L, scriptWarp->GetBindKey());
-		lua_rawget(L, LUA_REGISTRYINDEX);
-		return Ref(luaL_ref(L, LUA_REGISTRYINDEX));
+		LuaState::stack_guard_t guard(lua.get_state());
+		return scriptWarp->GetProfileTable().as<Ref>(lua);
 	} else {
 		fprintf(stderr, "[ERROR] Cannot GetProfile while coluster is not running!");
 		return Ref();

@@ -136,15 +136,19 @@ namespace coluster {
 		assert(warp != this);
 
 		void* key = static_cast<void*>(this);
-		Ref r = warp->GetCacheTable<Ref>(key);
+		Ref cache = std::move(*warp->GetProfileTable().get(lua, "cache"));
+		auto r = cache.get(lua, key);
 		if (r) {
 			lua.deref(std::move(self));
-			return r;
+			lua.deref(std::move(cache));
+			return std::move(*r);
 		}
 
 		Ref objectTypeRef = lua.make_type<Object>("Object", std::ref(*this), Ref());
 		objectTypeRef.set(lua, "__host", std::move(self));
-		warp->SetCacheTable(key, objectTypeRef);
+		cache.set(lua, key, objectTypeRef);
+		lua.deref(std::move(cache));
+
 		return objectTypeRef;
 	}
 
