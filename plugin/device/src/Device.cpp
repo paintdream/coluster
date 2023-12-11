@@ -208,7 +208,7 @@ namespace coluster {
 		}
 	}
 
-	Device::~Device() {
+	Device::~Device() noexcept {
 		while (queueingState.load(std::memory_order_acquire) != queue_state_idle) {
 			queueingState.wait(queueingState.load(std::memory_order_relaxed), std::memory_order_acquire);
 		}

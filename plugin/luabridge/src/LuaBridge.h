@@ -30,7 +30,7 @@ namespace coluster {
 	public:
 		using PoolBase = Pool<LuaBridge, lua_State*, 256>;
 		LuaBridge(AsyncWorker& asyncWorker);
-		~LuaBridge() noexcept;
+		~LuaBridge() noexcept override;
 
 		Warp& GetWarp() noexcept { return *this; }
 

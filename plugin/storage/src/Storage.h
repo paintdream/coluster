@@ -68,7 +68,7 @@ namespace coluster {
 #endif
 
 		Storage(AsyncWorker& asyncWorker);
-		~Storage() noexcept;
+		~Storage() noexcept override;
 
 		static void lua_registar(LuaState lua);
 		void lua_initialize(LuaState lua, int index);

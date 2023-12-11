@@ -29,7 +29,7 @@ namespace coluster {
 	class Channel : public Object, protected Warp {
 	public:
 		Channel(AsyncWorker& asyncWorker) noexcept;
-		~Channel() noexcept;
+		~Channel() noexcept override;
 
 		static void lua_registar(LuaState lua);
 		Warp& GetWarp() noexcept { return *this; }

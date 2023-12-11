@@ -100,7 +100,7 @@ namespace coluster {
 	class Device : public Object, protected Warp, public FencePool {
 	public:
 		Device(AsyncWorker& asyncWorker, uint32_t maxDescriptorSetCount = 1024, uint32_t maxDescriptorCount = 4096);
-		~Device();
+		~Device() noexcept override;
 
 		static void lua_registar(LuaState lua);
 		void lua_finalize(LuaState lua, int index);

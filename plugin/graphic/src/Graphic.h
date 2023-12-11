@@ -29,7 +29,7 @@ namespace coluster {
 	class Graphic : public Object {
 	public:
 		Graphic(AsyncWorker& asyncWorker);
-		~Graphic() noexcept;
+		~Graphic() noexcept override;
 
 		void lua_initialize(LuaState lua, int index);
 		void lua_finalize(LuaState lua, int index);

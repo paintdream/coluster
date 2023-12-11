@@ -15,7 +15,7 @@ namespace coluster {
 	class Texture : public Object {
 	public:
 		Texture(Storage& storage) noexcept;
-		~Texture() noexcept;
+		~Texture() noexcept override;
 
 		enum Status : uint8_t {
 			Status_Invalid,

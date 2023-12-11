@@ -45,6 +45,7 @@
 #include "../ref/iris/src/iris_coroutine.h"
 #include "../ref/iris/src/iris_buffer.h"
 #include "../ref/iris/src/iris_lua.h"
+#include "../ref/iris/src/iris_tree.h"
 
 namespace coluster {
 	using LuaState = iris::iris_lua_t;
@@ -64,6 +65,9 @@ namespace coluster {
 	using RefPtr = LuaState::refptr_t<element_t>;
 	template <typename element_t>
 	using Required = LuaState::required_t<element_t>;
+
+	template <typename tree_key_t>
+	using Tree = iris::iris_tree_t<tree_key_t>;
 
 	enum Priority : size_t {
 		Priority_Highest = 0,
