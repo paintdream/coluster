@@ -68,6 +68,8 @@ namespace coluster {
 
 	template <typename tree_key_t>
 	using Tree = iris::iris_tree_t<tree_key_t>;
+	template <typename element_t, typename prim_type = typename element_t::first_type, size_t element_count = prim_type::size * 2>
+	using TreeOverlap = iris::iris_overlap_t<element_t>;
 
 	enum Priority : size_t {
 		Priority_Highest = 0,
@@ -166,45 +168,15 @@ namespace coluster {
 		COLUSTER_API void Release();
 
 		const Ref& GetProfileTable() const noexcept {
-			return registryTable;
+			return profileTable;
 		}
 
 		COLUSTER_API static void ChainWait(const std::source_location& source, Warp* from, Warp* target, Warp* other);
 		COLUSTER_API static void ChainEnter(Warp* from, Warp* target, Warp* other);
 
 	protected:
-		template <typename value_t, typename key_t>
-		void SetTable(void* tableKey, std::string_view category, key_t&& key, value_t&& value) noexcept {
-			lua_State* L = hostState;
-			LuaState lua(L);
-			LuaState::stack_guard_t guard(L);
-			lua_pushlightuserdata(L, tableKey);
-			lua_rawget(L, LUA_REGISTRYINDEX);
-
-			lua.native_push_variable(std::forward<key_t>(key));
-			lua.native_push_variable(std::forward<value_t>(value));
-			lua_rawset(L, -3);
-			lua_pop(L, 1);
-		}
-
-		template <typename value_t, typename key_t>
-		value_t GetTable(void* tableKey, key_t&& key) {
-			lua_State* L = hostState;
-			LuaState lua(L);
-			LuaState::stack_guard_t guard(L);
-			lua_pushlightuserdata(L, tableKey);
-			lua_rawget(L, LUA_REGISTRYINDEX);
-
-			lua.native_push_variable(std::forward<key_t>(key));
-			lua_rawget(L, -2);
-			value_t ret = lua.native_get_variable<value_t>(-1);
-			lua_pop(L, 2);
-			return ret;
-		}
-
-	protected:
 		lua_State* hostState = nullptr;
-		Ref registryTable;
+		Ref profileTable;
 	};
 
 	using RootAlloator = std::remove_reference_t<decltype(coluster::AsyncWorker::task_allocator_t::get_root_allocator())>;

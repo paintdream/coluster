@@ -71,7 +71,7 @@ namespace coluster {
 		LuaState::stack_guard_t guard(L);
 		LuaState lua(L);
 
-		registryTable = lua.make_table([](LuaState lua) {
+		profileTable = lua.make_table([](LuaState lua) {
 			lua.set_current("trace", lua.make_table([](LuaState lua) {
 				lua.set_current_metatable(lua.make_table([](LuaState lua) {
 					lua.set_current("__mode", "k");
@@ -85,13 +85,14 @@ namespace coluster {
 			}));
 
 			lua.set_current("persist", lua.make_table([](LuaState lua) {}));
+			lua.set_current("type", lua.make_table([](LuaState lua) {}));
 		});
 	}
 
 	void Warp::UnbindLuaRoot(lua_State* L) noexcept {
 		LuaState::stack_guard_t guard(L);
 		LuaState lua(L);
-		lua.deref(std::move(registryTable));
+		lua.deref(std::move(profileTable));
 		hostState = nullptr;
 	}
 
