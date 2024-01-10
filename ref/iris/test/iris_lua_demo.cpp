@@ -53,6 +53,10 @@ struct iris::iris_lua_convert_t<vector3> : std::true_type {
 
 struct example_t {
 	static void lua_registar(lua_t lua) {
+		lua.set_current("lambda", [lua](int v) {
+			assert(v == 4);
+			return 4;
+		});
 		lua.set_current<&example_t::value>("value");
 		lua.set_current<&example_t::value_raw>("value_raw");
 		lua.set_current<&example_t::const_value>("const_value");
@@ -245,6 +249,37 @@ int main(void) {
 
 	lua_t lua(L);
 	lua.set_global("example_t", lua.make_type<example_t>("example_t"));
+	int capture = 2;
+
+	struct lambda {
+		lambda() {
+			printf("lambda constructor!\n");
+		}
+
+		lambda(lambda&& l) {
+			printf("lambda move constructor!\n");
+		}
+		
+		lambda(const lambda&) = delete;
+
+		~lambda() {
+			printf("lambda destructor!\n");
+		}
+
+		int operator () () {
+			return 3;
+		}
+	};
+
+	lua.set_global("functor", [capture]() noexcept {
+		return capture;
+	});
+	int retcapture = lua.call<int>(lua.get_global<iris_lua_t::ref_t>("functor")).value();
+	assert(retcapture == capture);
+
+	lua.set_global("functor2", lambda());
+	int retcapture2 = lua.call<int>(lua.get_global<iris_lua_t::ref_t>("functor2")).value();
+	assert(retcapture2 == 3);
 	
 #if USE_LUA_COROUTINE
 	worker_t worker(1);
@@ -265,6 +300,7 @@ int main(void) {
 function test(a, b, c) \n\
 	print('cross ' .. tostring(a)) \n\
 	print('cross value ' .. b:value()) \n\
+	print('lambda value ' .. b.lambda(4)) \n\
 	print('cross value ' .. c:value()) \n\
 	c:value(3333) \n\
 	print('cross value ' .. c:value()) \n\
