@@ -61,7 +61,7 @@ namespace coluster {
 	}
 
 	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Get(LuaState lua, std::string_view name) {
-		Ref s = lua.get_context<Ref>(LuaState::context_this());
+		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		LuaState target(state);
 		Ref ref = target.get_global<Ref>(name);
@@ -77,7 +77,7 @@ namespace coluster {
 	}
 
 	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Load(LuaState lua, std::string_view code) {
-		Ref s = lua.get_context<Ref>(LuaState::context_this());
+		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		LuaState target(state);
 		Ref ref = target.load(code);

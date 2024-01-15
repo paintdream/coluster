@@ -439,31 +439,31 @@ namespace coluster {
 namespace coluster {
 	Ref Device::TypeCmdBuffer(LuaState lua) {
 		Ref type = lua.make_type<CmdBuffer>("CmdBuffer", std::ref(*this));
-		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this()));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
 		return type;
 	}
 
 	Ref Device::TypeImage(LuaState lua) {
 		Ref type = lua.make_type<Image>("Image", std::ref(*this));
-		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this()));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
 		return type;
 	}
 
 	Ref Device::TypeBuffer(LuaState lua) {
 		Ref type = lua.make_type<Buffer>("Buffer", std::ref(*this));
-		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this()));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
 		return type;
 	}
 
 	Ref Device::TypeShader(LuaState lua) {
 		Ref type = lua.make_type<Shader>("Shader", std::ref(*this));
-		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this()));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
 		return type;
 	}
 
 	Ref Device::TypePass(LuaState lua) {
 		Ref type = lua.make_type<Pass>("Pass", std::ref(*this));
-		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this()));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
 		return type;
 	}
 
@@ -474,7 +474,7 @@ namespace coluster {
 		}
 
 		Ref type = lua.make_type<Texture>("Texture", std::ref(*storage.get()));
-		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this()));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
 		return type;
 	}
 }

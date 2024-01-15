@@ -54,7 +54,7 @@ struct iris::iris_lua_convert_t<vector3> : std::true_type {
 struct example_t {
 	static void lua_registar(lua_t lua) {
 		lua.set_current("lambda", [lua](int v) {
-			assert(v == 4);
+			IRIS_ASSERT(v == 4);
 			return 4;
 		});
 		lua.set_current<&example_t::value>("value");
@@ -256,7 +256,7 @@ int main(void) {
 			printf("lambda constructor!\n");
 		}
 
-		lambda(lambda&& l) {
+		lambda(lambda&& l) noexcept {
 			printf("lambda move constructor!\n");
 		}
 		
@@ -271,15 +271,24 @@ int main(void) {
 		}
 	};
 
+	lua.set_global("fmt_string", lua.make_string("hello %s", "world!"));
+	IRIS_ASSERT(lua.get_global<std::string>("fmt_string") == "hello world!");
+
+	lua.set_global("fmt_string_lambda", lua.make_string([](auto&& buff) {
+		buff << "hello world!";
+	}));
+
+	IRIS_ASSERT(lua.get_global<std::string>("fmt_string_lambda") == "hello world!");
+
 	lua.set_global("functor", [capture]() noexcept {
 		return capture;
 	});
 	int retcapture = lua.call<int>(lua.get_global<iris_lua_t::ref_t>("functor")).value();
-	assert(retcapture == capture);
+	IRIS_ASSERT(retcapture == capture);
 
 	lua.set_global("functor2", lambda());
 	int retcapture2 = lua.call<int>(lua.get_global<iris_lua_t::ref_t>("functor2")).value();
-	assert(retcapture2 == 3);
+	IRIS_ASSERT(retcapture2 == 3);
 	
 #if USE_LUA_COROUTINE
 	worker_t worker(1);
@@ -318,7 +327,7 @@ end\n\
 	auto temp_type = target.make_type<example_t>("example_temp_t");
 	target.call<void>(test, "existing", target.make_object_view<example_t>(temp_type, &existing_object), target.make_object_view<example_t>(temp_type, &existing_object));
 	target.deref(std::move(temp_type));
-	assert(existing_object.value == 3333);
+	IRIS_ASSERT(existing_object.value == 3333);
 	existing_object.value = 2222;
 
 	lua.native_push_variable(1234);
@@ -331,7 +340,7 @@ end\n\
 	lua.native_pop_variable(3);
 
 	int result = target.native_call(std::move(test), 3);
-	assert(existing_object.value == 3333);
+	IRIS_ASSERT(existing_object.value == 3333);
 	int ret_val = target.native_get_variable<int>(-1);
 	IRIS_ASSERT(ret_val == 1234);
 	target.native_pop_variable(1);

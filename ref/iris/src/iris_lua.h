@@ -456,10 +456,57 @@ namespace iris {
 			return refptr_t<type_t>(luaL_ref(L, LUA_REGISTRYINDEX), object);
 		}
 
-		struct context_this {};
-		struct context_table {};
-		struct context_upvalue {
-			context_upvalue(int i) noexcept : index(i) {}
+		struct buffer_t {
+			template <typename value_t>
+			buffer_t& operator << (value_t&& value) {
+				using type_t = std::remove_volatile_t<std::remove_const_t<std::remove_reference_t<value_t>>>;
+				if constexpr (std::is_convertible_v<value_t, std::string_view>) {
+					std::string_view view = value;
+					luaL_addlstring(buffer, view.data(), view.size());
+				} else if constexpr (std::is_integral_v<type_t> && sizeof(type_t) > sizeof(char)) {
+					luaL_addlstring(buffer, &value, sizeof(value));
+				} else {
+					luaL_addchar(buffer, value);
+				}
+
+				return *this;
+			}
+
+			friend struct iris_lua_t;
+		protected:
+			buffer_t(lua_State* s, luaL_Buffer* b) noexcept : L(s), buffer(b) { IRIS_ASSERT(L != nullptr && buffer != nullptr); }
+
+			lua_State* L;
+			luaL_Buffer* buffer;
+		};
+
+		template <typename... args_t>
+		ref_t make_string(const char* fmt, args_t&&... args) {
+			IRIS_PROFILE_SCOPE(__FUNCTION__);
+
+			lua_State* L = state;
+			stack_guard_t guard(L);
+			lua_pushfstring(L, fmt, std::forward<args_t>(args)...);
+			return ref_t(luaL_ref(L, LUA_REGISTRYINDEX));
+		}
+
+		template <typename func_t>
+		ref_t make_string(func_t&& func) {
+			IRIS_PROFILE_SCOPE(__FUNCTION__);
+
+			lua_State* L = state;
+			stack_guard_t guard(L);
+			luaL_Buffer buff;
+			luaL_buffinit(L, &buff);
+			func(buffer_t(L, &buff));
+			luaL_pushresult(&buff);
+			return ref_t(luaL_ref(L, LUA_REGISTRYINDEX));
+		}
+
+		struct context_this_t {};
+		struct context_table_t {};
+		struct context_upvalue_t {
+			context_upvalue_t(int i) noexcept : index(i) {}
 			int index;
 		};
 
@@ -472,13 +519,13 @@ namespace iris {
 			stack_guard_t stack_guard(L);
 
 			using type_t = std::remove_volatile_t<std::remove_const_t<std::remove_reference_t<key_t>>>;
-			if constexpr (std::is_same_v<type_t, context_this>) {
+			if constexpr (std::is_same_v<type_t, context_this_t>) {
 				IRIS_ASSERT(lua_isuserdata(L, 1));
 				return get_variable<value_t>(L, 1);
-			} else if constexpr (std::is_same_v<type_t, context_table>) {
+			} else if constexpr (std::is_same_v<type_t, context_table_t>) {
 				IRIS_ASSERT(lua_istable(L, -1));
 				return get_variable<value_t>(L, -1);
-			} else if constexpr (std::is_same_v<type_t, context_upvalue>) {
+			} else if constexpr (std::is_same_v<type_t, context_upvalue_t>) {
 				return get_variable<value_t>(L, lua_upvalueindex(key.index));
 			} else if constexpr (std::is_same_v<type_t, context_stack_top>) {
 				return lua_gettop(L);
