@@ -234,7 +234,6 @@ namespace coluster {
 	using CoroutineHandle = std::coroutine_handle<return_t>;
 	using AsyncEvent = iris::iris_event_t<Warp, AsyncWorker>;
 	using AsyncBarrier = iris::iris_barrier_t<Warp, AsyncWorker>;
-	using AsyncFrame = iris::iris_frame_t<Warp, AsyncWorker>;	
 
 	struct AutoAsyncWorker : LuaState::require_base_t {
 		struct Holder {
