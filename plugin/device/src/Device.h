@@ -34,7 +34,7 @@
 namespace coluster {
 	// awaitable completion of Queue
 	class Device;
-	class DeviceObject : public Object {
+	class DeviceObject : public Object, protected EnableReadWriteFence {
 	public:
 		DeviceObject(Device& device) noexcept;
 		Device& GetDevice() noexcept { return device; }

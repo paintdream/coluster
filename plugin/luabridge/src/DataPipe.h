@@ -8,7 +8,7 @@
 #include "LuaBridge.h"
 
 namespace coluster {
-	class DataPipe : public Object {
+	class DataPipe : public Object, protected EnableInOutFence {
 	public:
 		~DataPipe() noexcept override;
 		static void lua_registar(LuaState lua);
@@ -18,7 +18,6 @@ namespace coluster {
 		bool Empty() const noexcept;
 
 	protected:
-		QueueList<uint8_t> dataStream;
-		QueueList<size_t> lengthStream;
+		QueueList<uint8_t> dataQueueList;
 	};
 }

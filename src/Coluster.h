@@ -268,7 +268,7 @@ namespace coluster {
 		static Guid Generate() noexcept;
 	};
 
-	class Object : protected EnableReadWriteFence {
+	class Object {
 	public:
 		COLUSTER_API Object() noexcept;
 		COLUSTER_API virtual ~Object() noexcept;
