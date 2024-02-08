@@ -10,6 +10,7 @@
 namespace coluster {
 	class DataPipe : public Object, protected EnableInOutFence {
 	public:
+		DataPipe(AsyncWorker& asyncWorker);
 		~DataPipe() noexcept override;
 		static void lua_registar(LuaState lua);
 		void lua_initialize(LuaState lua, int index) noexcept;
@@ -18,7 +19,7 @@ namespace coluster {
 		bool BindOutputWarp(Warp* warp) noexcept;
 
 		void Push(std::string_view data);
-		std::string Pop();
+		Coroutine<std::string> Pop();
 		bool Empty() const noexcept;
 
 	protected:
@@ -51,10 +52,11 @@ namespace coluster {
 		};
 
 		static void CheckedPush(RequiredDataPipe<true>&& self, std::string_view data);
-		static std::string CheckedPop(RequiredDataPipe<false>&& self);
+		static Coroutine<std::string> CheckedPop(RequiredDataPipe<false>&& self);
 		static bool CheckedEmpty(RequiredDataPipe<false>&& self);
 
 	protected:
+		AsyncPipe<size_t> asyncPipe;
 		QueueList<uint8_t> dataQueueList;
 		Warp* inputWarp = nullptr;
 		Warp* outputWarp = nullptr;

@@ -1,7 +1,9 @@
 #include "DataPipe.h"
 
 namespace coluster {
+	DataPipe::DataPipe(AsyncWorker& asyncWorker) : asyncPipe(asyncWorker) {}
 	DataPipe::~DataPipe() noexcept {}
+
 	void DataPipe::lua_initialize(LuaState lua, int index) noexcept {
 		// by default, inputWarp == outputWarp == scriptWarp
 		Warp* currentWarp = Warp::get_current_warp();
@@ -37,7 +39,7 @@ namespace coluster {
 		self->Push(data);
 	}
 
-	std::string DataPipe::CheckedPop(RequiredDataPipe<false>&& self) {
+	Coroutine<std::string> DataPipe::CheckedPop(RequiredDataPipe<false>&& self) {
 		return self->Pop();
 	}
 
@@ -54,23 +56,18 @@ namespace coluster {
 	void DataPipe::Push(std::string_view data) {
 		assert(Warp::get_current_warp() == inputWarp);
 		auto guard = in_fence();
-		size_t size = data.size();
-		if (size != 0) {
-			dataQueueList.push(reinterpret_cast<uint8_t*>(&size), reinterpret_cast<uint8_t*>(&size) + sizeof(size_t));
-			dataQueueList.push(data.data(), data.data() + data.size());
-		}
+		dataQueueList.push(data.data(), data.data() + data.size());
+		asyncPipe.emplace(data.size());
 	}
 
-	std::string DataPipe::Pop() {
+	Coroutine<std::string> DataPipe::Pop() {
 		assert(Warp::get_current_warp() == outputWarp);
+		size_t size = co_await asyncPipe;
 		auto guard = out_fence();
-		size_t size = 0;
-		dataQueueList.pop(reinterpret_cast<uint8_t*>(&size), reinterpret_cast<uint8_t*>(&size) + sizeof(size_t));
-
 		std::string data;
 		data.resize(size);
 		dataQueueList.pop(data.data(), data.data() + size);
 
-		return data;
+		co_return data;
 	}
 }

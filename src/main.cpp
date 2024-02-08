@@ -99,7 +99,7 @@ void Coluster::lua_registar(LuaState lua) {
 }
 
 Ref Coluster::TypeDataPipe(LuaState lua) {
-	return lua.make_type<DataPipe>("DataPipe");
+	return lua.make_type<DataPipe>("DataPipe", AutoAsyncWorker());
 }
 
 bool Coluster::IsMainThread() const noexcept {
