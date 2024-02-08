@@ -47,7 +47,7 @@ namespace coluster {
 		};
 
 		struct StackIndex {
-			lua_State* dataStack;
+			lua_State* dataStack = nullptr;
 			int index = 0;
 		};
 
@@ -73,8 +73,8 @@ namespace coluster {
 		QueueList<Ref> deletingObjects;
 
 	protected:
-		lua_State* state;
-		lua_State* dataExchangeStack;
+		lua_State* state = nullptr;
+		lua_State* dataExchangeStack = nullptr;
 		Ref dataExchangeRef;
 	};
 }

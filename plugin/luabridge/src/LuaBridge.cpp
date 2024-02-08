@@ -20,7 +20,7 @@ namespace iris {
 }
 
 namespace coluster {
-	LuaBridge::LuaBridge(AsyncWorker& asyncWorker) : Warp(asyncWorker), dataExchangeStack(nullptr) {
+	LuaBridge::LuaBridge(AsyncWorker& asyncWorker) : Warp(asyncWorker) {
 		state = luaL_newstate();
 		luaL_openlibs(state);
 		BindLuaRoot(state);

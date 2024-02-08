@@ -235,7 +235,7 @@ namespace coluster {
 	using AsyncEvent = iris::iris_event_t<Warp, AsyncWorker>;
 	using AsyncBarrier = iris::iris_barrier_t<Warp, AsyncWorker>;
 
-	struct AutoAsyncWorker : LuaState::require_base_t {
+	struct AutoAsyncWorker : LuaState::required_base_t {
 		struct Holder {
 			operator bool() const noexcept {
 				Warp* warp = Warp::get_current_warp();
@@ -247,7 +247,9 @@ namespace coluster {
 			}
 		};
 
+		using required_type_t = Holder;
 		using internal_type_t = Holder;
+
 		Holder get() const noexcept {
 			return Holder();
 		}

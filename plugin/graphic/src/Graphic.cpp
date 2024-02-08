@@ -6,6 +6,5 @@ namespace coluster {
 
 	void Graphic::lua_initialize(LuaState lua, int index) {}
 	void Graphic::lua_finalize(LuaState lua, int index) {}
-
 	void Graphic::lua_registar(LuaState lua) {}
 }
