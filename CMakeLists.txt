@@ -62,6 +62,8 @@ FILE (GLOB_RECURSE COLUSTER_SRC
 	"${PROJECT_SOURCE_DIR}/ref/iris/iris_system.h"
 	"${PROJECT_SOURCE_DIR}/ref/iris/iris_common.h"
 	"${PROJECT_SOURCE_DIR}/ref/iris/iris_common.inl"
+	"${PROJECT_SOURCE_DIR}/ref/glm/*.hpp"
+	"${PROJECT_SOURCE_DIR}/ref/glm/*.inl"
 	"${PROJECT_SOURCE_DIR}/app/*.lua"
 	"${PROJECT_SOURCE_DIR}/app/*.glsl"
 )

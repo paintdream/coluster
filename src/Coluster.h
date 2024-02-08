@@ -66,10 +66,10 @@ namespace coluster {
 	template <typename element_t>
 	using Required = LuaState::required_t<element_t>;
 
-	template <typename tree_key_t>
-	using Tree = iris::iris_tree_t<tree_key_t>;
 	template <typename element_t, typename prim_type = typename element_t::first_type, size_t element_count = prim_type::size * 2>
-	using TreeOverlap = iris::iris_overlap_t<element_t>;
+	using TreeOverlap = iris::iris_overlap_t<element_t, prim_type, element_count>;
+	template <typename tree_key_t, typename meta = TreeOverlap<tree_key_t>>
+	using Tree = iris::iris_tree_t<tree_key_t, meta>;
 
 	enum Priority : size_t {
 		Priority_Highest = 0,
