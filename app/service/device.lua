@@ -6,7 +6,7 @@ function Device.New(coluster, services)
 	setmetatable(instance, Device)
 	local import = require("util/import")
 
-	instance.object = require("device").create()
+	instance.object = require("device").new()
 	instance.object:Initialize(services.storage.object)
 	instance.types = import.FetchTypes(instance.object)
 

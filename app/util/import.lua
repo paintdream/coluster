@@ -9,7 +9,7 @@ function Import.FetchTypes(instance)
 
 	for name, value in pairs(getmetatable(instance)) do
 		if name:sub(0, 4) == "Type" then
-			types[name:sub(5)] = value(instance).create
+			types[name:sub(5)] = value(instance).new
 		end
 	end
 

@@ -6,7 +6,7 @@ function Database.New(coluster, services)
 	setmetatable(instance, Database)
 	local import = require("util/import")
 
-	instance.object = require("database").create()
+	instance.object = require("database").new()
 	instance.types = import.FetchTypes(instance.object)
 	return instance
 end

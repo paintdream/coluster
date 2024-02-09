@@ -6,7 +6,7 @@ function LuaBridge.New(coluster, services)
 	setmetatable(instance, LuaBridge)
 	local import = require("util/import")
 
-	instance.object = require("luabridge").create()
+	instance.object = require("luabridge").new()
 	instance.types = import.FetchTypes(instance.object)
 	return instance
 end

@@ -6,7 +6,7 @@ function Storage.New(coluster, services)
 	setmetatable(instance, Storage)
 	local import = require("util/import")
 
-	instance.object = require("storage").create()
+	instance.object = require("storage").new()
 	instance.types = import.FetchTypes(instance.object)
 	return instance
 end

@@ -14,7 +14,7 @@ if package.cpath:find(".so") and not package.cpath:find("%./lib%?%.so") then
 end
 ]]
 
-local coluster = assert(require("coluster").create())
+local coluster = assert(require("coluster").new())
 if not coluster:Start(colusterThreadCount) then
 	error("Coluster startup failed!")
 end

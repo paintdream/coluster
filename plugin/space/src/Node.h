@@ -11,7 +11,7 @@ namespace coluster {
 	using Box = std::pair<Vector, Vector>;
 	using Overlap = TreeOverlap<Box, typename Box::first_type, 3>;
 
-	class Node : public Object, Tree<Box, Overlap> {
+	class Node : public Object, public Tree<Box, Overlap> {
 	public:
 		enum Persist {
 			Persist_Script,

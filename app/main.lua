@@ -7,7 +7,7 @@ warn = function (message)
 	print("[Warning] " .. message)
 end
 
-local coluster = assert(require("coluster").create())
+local coluster = assert(require("coluster").new())
 local services = {}
 coluster:Start(4)
 coluster:Post(function ()
