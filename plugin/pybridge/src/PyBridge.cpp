@@ -63,7 +63,7 @@ namespace coluster {
 	}
 
 	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Get(LuaState lua, std::string_view name) {
-		Ref s = lua.get_context<Ref>(LuaState::context_this());
+		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		PyObject* object = nullptr;
 		do {
@@ -83,7 +83,7 @@ namespace coluster {
 	}
 
 	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Import(LuaState lua, std::string_view name) {
-		Ref s = lua.get_context<Ref>(LuaState::context_this());
+		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		PyObject* object = nullptr;
 		do {
@@ -101,7 +101,7 @@ namespace coluster {
 	}
 
 	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Call(LuaState lua, Required<Object*> callable, std::vector<Object*>&& params) {
-		Ref s = lua.get_context<Ref>(LuaState::context_this());
+		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		std::vector<Object*> parameters = std::move(params);
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 
@@ -131,7 +131,7 @@ namespace coluster {
 	}
 
 	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Pack(LuaState lua, Ref&& ref) {
-		Ref s = lua.get_context<Ref>(LuaState::context_this());
+		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), Warp::get_current_warp(), &GetWarp());
 
 		PyObject* object = nullptr;
@@ -160,15 +160,19 @@ namespace coluster {
 		assert(warp != this);
 
 		void* key = static_cast<void*>(this);
-		Ref r = warp->GetCacheTable<Ref>(key);
+		Ref cache = std::move(*warp->GetProfileTable().get(lua, "cache"));
+		auto r = cache.get(lua, key);
 		if (r) {
 			lua.deref(std::move(self));
-			return r;
+			lua.deref(std::move(cache));
+			return std::move(*r);
 		}
 
 		Ref objectTypeRef = lua.make_type<Object>("Object", std::ref(*this), nullptr);
 		objectTypeRef.set(lua, "__host", std::move(self));
-		warp->SetCacheTable(key, objectTypeRef);
+		cache.set(lua, key, objectTypeRef);
+		lua.deref(std::move(cache));
+
 		return objectTypeRef;
 	}
 
@@ -214,7 +218,11 @@ namespace coluster {
 			case LUA_TSTRING:
 			{
 				std::string_view view = lua.native_get_variable<std::string_view>(index);
-				return PyUnicode_FromStringAndSize(view.data(), view.size());
+#if PY_MAJOR_VERSION < 3
+				return PyString_FromStringAndSize(view.data(), view.size());
+#else
+				return PyByteArray_FromStringAndSize(view.data(), view.size());
+#endif
 			}
 			case LUA_TTABLE:
 			{
@@ -269,15 +277,25 @@ namespace coluster {
 				lua.native_push_variable(PyLong_AsLongLong(object));
 			} else if (type == &PyFloat_Type) {
 				lua.native_push_variable(PyFloat_AsDouble(object));
+#if PY_MAJOR_VERSION < 3 
+			} else if (type == &PyString_Type) {
+				Py_ssize_t size = 0;
+				char* s = nullptr;
+				if (PyString_AsStringAndSize(object, &s, &size)) {
+					lua.native_push_variable(std::string_view(s, size));
+				} else {
+					lua.native_push_variable(nullptr);
+				}
+#else
 			} else if (type == &PyUnicode_Type) {
 				Py_ssize_t size = 0;
-#if PY_MAJOR_VERSION < 3 
-				char* s = nullptr;
-				PyString_AsStringAndSize(object, &s, &size);
-#else
 				const char* s = PyUnicode_AsUTF8AndSize(object, &size);
-#endif
 				lua.native_push_variable(std::string_view(s, size));
+			} else if (type == &PyByteArray_Type) {
+				Py_ssize_t size = PyByteArray_Size(object);
+				const char* s = PyByteArray_AsString(object);
+				lua.native_push_variable(std::string_view(s, size));
+#endif
 			} else if (type == &PyTuple_Type) {
 				Py_ssize_t size = PyTuple_GET_SIZE(object);
 				lua_createtable(L, static_cast<int>(size), 0);
