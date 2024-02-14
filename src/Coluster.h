@@ -46,11 +46,19 @@
 #include "../ref/iris/src/iris_buffer.h"
 #include "../ref/iris/src/iris_lua.h"
 #include "../ref/iris/src/iris_tree.h"
+#include "../ref/iris/src/iris_system.h"
 
 namespace coluster {
 	using LuaState = iris::iris_lua_t;
 	using EnableReadWriteFence = iris::enable_read_write_fence_t<>;
 	using EnableInOutFence = iris::enable_in_out_fence_t<>;
+
+	template <typename entity_t, typename... components_t>
+	using System = iris::iris_system_t<entity_t, iris::iris_default_block_allocator_t, components_t...>;
+	template <typename entity_t>
+	using Systems = iris::iris_systems_t<entity_t, iris::iris_default_block_allocator_t>;
+	template <typename entity_t>
+	using EntityAllocator = iris::iris_entity_allocator_t<entity_t, iris::iris_default_block_allocator_t>;
 
 	template <typename element_t>
 	using QueueList = iris::iris_queue_list_t<element_t, iris::iris_default_block_allocator_t, iris::iris_default_block_allocator_t, true>;
@@ -66,8 +74,8 @@ namespace coluster {
 	template <typename element_t>
 	using Required = LuaState::required_t<element_t>;
 
-	template <typename element_t, typename prim_type = typename element_t::first_type, size_t element_count = prim_type::size * 2>
-	using TreeOverlap = iris::iris_overlap_t<element_t, prim_type, element_count>;
+	template <typename element_t, typename prim_type = typename element_t::first_type, typename index_type_t = size_t, index_type_t prim_size = prim_type::size * 2>
+	using TreeOverlap = iris::iris_overlap_t<element_t, prim_type, index_type_t, prim_size>;
 	template <typename tree_key_t, typename meta = TreeOverlap<tree_key_t>>
 	using Tree = iris::iris_tree_t<tree_key_t, meta>;
 
@@ -163,6 +171,7 @@ namespace coluster {
 		COLUSTER_API AsyncWorker& get_async_worker() noexcept;
 		COLUSTER_API explicit Warp(AsyncWorker& asyncWorker) : Base(asyncWorker) { assert(!asyncWorker.is_terminated()); }
 		COLUSTER_API void BindLuaRoot(lua_State* L) noexcept;
+		COLUSTER_API lua_State* GetLuaRoot() const noexcept;
 		COLUSTER_API void UnbindLuaRoot(lua_State* L) noexcept;
 		COLUSTER_API void Acquire();
 		COLUSTER_API void Release();
@@ -175,7 +184,7 @@ namespace coluster {
 		COLUSTER_API static void ChainEnter(Warp* from, Warp* target, Warp* other);
 
 	protected:
-		lua_State* hostState = nullptr;
+		lua_State* rootState = nullptr;
 		Ref profileTable;
 	};
 

@@ -4,7 +4,6 @@
 //
 
 #pragma once
-
 #include "../../../src/Coluster.h"
 
 #if !COLUSTER_MONOLITHIC
@@ -26,14 +25,28 @@
 #endif
 
 namespace coluster {
+	using Entity = uint32_t;
 	class Space : public Object {
 	public:
-		Space(AsyncWorker& asyncWorker);
+		Space(AsyncWorker& asyncWorker) noexcept;
 		~Space() noexcept override;
 
 		void lua_initialize(LuaState lua, int index);
 		void lua_finalize(LuaState lua, int index);
 		static void lua_registar(LuaState lua);
+
+		Systems<Entity>& GetSystems() noexcept {
+			return theSystems;
+		}
+
+		Ref TypeNodeSystem(LuaState lua);
+		Entity NewEntity();
+		void DeleteEntity(Entity entity);
+
+	protected:
+		AsyncWorker& asyncWorker;
+		EntityAllocator<Entity> entityAllocator;
+		Systems<Entity> theSystems;
 	};
 }
 

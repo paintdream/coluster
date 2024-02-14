@@ -64,8 +64,12 @@ namespace coluster {
 		return SwitchWarp(source, target, other);
 	}
 
+	lua_State* Warp::GetLuaRoot() const noexcept {
+		return rootState;
+	}
+
 	void Warp::BindLuaRoot(lua_State* L) noexcept {
-		hostState = L;
+		rootState = L;
 
 		// create cache table
 		LuaState::stack_guard_t guard(L);
@@ -93,7 +97,7 @@ namespace coluster {
 		LuaState::stack_guard_t guard(L);
 		LuaState lua(L);
 		lua.deref(std::move(profileTable));
-		hostState = nullptr;
+		rootState = nullptr;
 	}
 
 	void Warp::ChainWait(const std::source_location& source, Warp* from, Warp* target, Warp* other) {
@@ -106,7 +110,7 @@ namespace coluster {
 			// use raw api for faster operation
 			scriptWarp->queue_routine([address = GetCurrentCoroutineAddress(), source, from, target, other]() {
 				Warp* scriptWarp = Warp::get_current_warp();
-				lua_State* L = scriptWarp->hostState;
+				lua_State* L = scriptWarp->rootState;
 				LuaState::stack_guard_t guard(L);
 				LuaState lua(L);
 
@@ -139,7 +143,7 @@ namespace coluster {
 			scriptWarp->queue_barrier();
 			scriptWarp->queue_routine([address = GetCurrentCoroutineAddress(), from, target, other]() {
 				Warp* scriptWarp = Warp::get_current_warp();
-				lua_State* L = scriptWarp->hostState;
+				lua_State* L = scriptWarp->rootState;
 				LuaState::stack_guard_t guard(L);
 				LuaState lua(L);
 
