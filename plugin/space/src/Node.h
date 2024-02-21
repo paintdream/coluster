@@ -6,22 +6,18 @@
 #pragma once
 #include "Space.h"
 #include "glm/vec3.hpp"
+#include "glm/vec4.hpp"
+#include "glm/geometric.hpp"
 
 namespace coluster {
-	using Vector = glm::vec3;
-	using Box = std::pair<Vector, Vector>;
-	using Overlap = TreeOverlap<Box, typename Box::first_type, Vector::length_type, 6>;
+	using Vector3 = glm::vec3;
+	using Vector4 = glm::vec4;
+	using Box = std::pair<Vector3, Vector3>;
+	using Overlap = TreeOverlap<Box, typename Box::first_type, Vector3::length_type, 6>;
 
 	class Node : public Tree<Box, Overlap> {
 	public:
 		using Base = Tree<Box, Overlap>;
-		enum Persist {
-			Persist_Script,
-			Persist_Managed,
-			Persist_Compressed,
-			Persist_Asset,
-			Persist_Remote
-		};
 
 		Node() noexcept;
 		Node(Entity e, Ref&& r) noexcept;
@@ -37,6 +33,14 @@ namespace coluster {
 
 		Entity GetEntity() const noexcept {
 			return entity;
+		}
+
+		const Ref& GetEntityObject() const noexcept {
+			return ref;
+		}
+
+		Ref& GetEntityObject() noexcept {
+			return ref;
 		}
 
 	protected:
@@ -55,9 +59,12 @@ namespace coluster {
 
 		bool Create(Entity entity, Ref&& ref);
 		void Move(Entity entity, const std::array<float, 6>& boundingBox);
-		std::vector<Entity> Query(Entity entity, const std::array<float, 6>& boundingBox);
+		std::vector<Entity> Query(Entity entity, const std::array<float, 6>& boundingBox, const std::vector<float>& convexCuller);
+		Ref GetObject(LuaState lua, Entity entity);
+		void SetObject(LuaState lua, Entity entity, Ref&& ref);
 		bool Attach(Entity parent, Entity child);
 		bool Detach(Entity entity);
+		Entity Optimize(Entity entity);
 
 	protected:
 		Space& space;
