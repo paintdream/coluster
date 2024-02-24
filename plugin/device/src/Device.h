@@ -5,29 +5,11 @@
 
 #pragma once
 
-#include "../../../src/Coluster.h"
+#include "DeviceCommon.h"
 #include <vulkan/vulkan.h>
 
 #define VMA_VULKAN_VERSION 1002000
 #include "../ref/vulkansdk/vk_mem_alloc.h"
-
-#if !COLUSTER_MONOLITHIC
-#ifdef DEVICE_EXPORT
-	#ifdef __GNUC__
-		#define DEVICE_API __attribute__ ((visibility ("default")))
-	#else
-		#define DEVICE_API __declspec(dllexport) // Note: actually gcc seems to also supports this syntax.
-	#endif
-#else
-	#ifdef __GNUC__
-		#define DEVICE_API __attribute__ ((visibility ("default")))
-	#else
-		#define DEVICE_API __declspec(dllimport) // Note: actually gcc seems to also supports this syntax.
-	#endif
-#endif
-#else
-#define DEVICE_API
-#endif
 
 #define DEFINE_MAP_ENTRY(f) { #f, VK_##f }
 

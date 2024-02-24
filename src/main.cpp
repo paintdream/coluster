@@ -2,8 +2,6 @@
 #include "../ref/iris/src/iris_common.inl" // implementation of memory management apis
 #include <chrono>
 #include <signal.h>
-#include "AsyncMap.h"
-#include "DataPipe.h"
 using namespace coluster;
 
 #if LUA_VERSION_NUM <= 501
@@ -61,7 +59,6 @@ public:
 	size_t GetTaskCount() const noexcept;
 	bool IsMainThread() const noexcept;
 	bool IsWorkerTerminated() const noexcept;
-	Ref TypeDataPipe(LuaState state);
 
 protected:
 	void doREPL(lua_State* L);
@@ -95,11 +92,6 @@ void Coluster::lua_registar(LuaState lua) {
 	lua.set_current<&Coluster::IsWorkerTerminated>("IsWorkerTerminated");
 	lua.set_current<&Coluster::GetTaskCount>("GetTaskCount");
 	lua.set_current<&Coluster::IsMainThread>("IsMainThread");
-	lua.set_current<&Coluster::TypeDataPipe>("TypeDataPipe");
-}
-
-Ref Coluster::TypeDataPipe(LuaState lua) {
-	return lua.make_type<DataPipe>("DataPipe", AutoAsyncWorker());
 }
 
 bool Coluster::IsMainThread() const noexcept {

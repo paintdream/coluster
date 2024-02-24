@@ -6,7 +6,6 @@
 #pragma once
 
 #include "Device.h"
-#include "Device.h"
 
 namespace coluster {
 	// CmdBuffer for warp management

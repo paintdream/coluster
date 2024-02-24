@@ -1,11 +1,11 @@
-// Graphic.h
+// GraphicCommon.h
 // PaintDream (paintdream@paintdream.com)
 // 2023-07-02
 //
 
 #pragma once
 
-#include "GraphicCommon.h"
+#include "../../../src/Coluster.h"
 
 #if !COLUSTER_MONOLITHIC
 #ifdef GRAPHIC_EXPORT
@@ -24,19 +24,4 @@
 #else
 #define GRAPHIC_API
 #endif
-
-namespace coluster {
-	class Graphic : public Object {
-	public:
-		Graphic(AsyncWorker& asyncWorker);
-		~Graphic() noexcept override;
-
-		void lua_initialize(LuaState lua, int index);
-		void lua_finalize(LuaState lua, int index);
-		static void lua_registar(LuaState lua);
-
-	protected:
-		AsyncWorker& asyncWorker;
-	};
-}
 

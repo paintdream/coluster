@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "Coluster.h"
+#include "../../../src/Coluster.h"
 
 namespace coluster {
 	class DataPipe : public Object, protected EnableInOutFence {
