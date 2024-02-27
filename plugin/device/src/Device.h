@@ -164,6 +164,7 @@ namespace coluster {
 #ifdef _DEBUG
 		uint64_t debugCallback = 0;
 #endif
+		bool hasValidationLayer = false;
 	};
 }
 

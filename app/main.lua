@@ -1,6 +1,11 @@
 if package.cpath:find(".so") and not package.cpath:find("%./lib%?%.so") then
 	package.cpath = package.cpath .. ";./lib?.so"
-	print(package.cpath)
+end
+
+-- for debugging from Visual Studio
+local platform = os.getenv('OS')
+if platform and platform:find("^Windows") then
+	package.cpath = package.cpath .. ";../build/Debug/?.dll"
 end
 
 warn = function (message)

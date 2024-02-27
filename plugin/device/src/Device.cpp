@@ -90,11 +90,16 @@ namespace coluster {
 		std::vector<const char*> extensions = { "VK_KHR_get_physical_device_properties2" };
 
 #ifdef _DEBUG 
-		const char* layers[] = { "VK_LAYER_KHRONOS_validation" };
-		instanceCreateInfo.enabledLayerCount = 1;
-		instanceCreateInfo.ppEnabledLayerNames = layers;
-		// Enable debug report extension (we need additional storage, so we duplicate the user array to add our new extension to it)
-		extensions.emplace_back("VK_EXT_debug_report");
+		uint32_t propertyCount = 1;
+		VkExtensionProperties properties;
+		hasValidationLayer = vkEnumerateInstanceExtensionProperties("VK_LAYER_KHRONOS_validation", &propertyCount, &properties) == VK_SUCCESS;
+		if (hasValidationLayer) {
+			const char* layers[] = { "VK_LAYER_KHRONOS_validation" };
+			instanceCreateInfo.enabledLayerCount = 1;
+			instanceCreateInfo.ppEnabledLayerNames = layers;
+			// Enable debug report extension (we need additional storage, so we duplicate the user array to add our new extension to it)
+			extensions.emplace_back("VK_EXT_debug_report");
+		}
 #endif
 
 		instanceCreateInfo.enabledExtensionCount = iris::iris_verify_cast<uint32_t>(extensions.size());
@@ -104,16 +109,18 @@ namespace coluster {
 
 #ifdef _DEBUG
 		// Get the function pointer (required for any extensions)
-		auto vkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
-		assert(vkCreateDebugReportCallbackEXT != nullptr);
+		if (hasValidationLayer) {
+			auto vkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
+			assert(vkCreateDebugReportCallbackEXT != nullptr);
 
-		// Setup the debug report callback
-		VkDebugReportCallbackCreateInfoEXT debugReport = {};
-		debugReport.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
-		debugReport.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT;
-		debugReport.pfnCallback = DebugReportCallback;
-		debugReport.pUserData = nullptr;
-		Verify("create debug report", vkCreateDebugReportCallbackEXT(instance, &debugReport, allocator, (VkDebugReportCallbackEXT*)&debugCallback));
+			// Setup the debug report callback
+			VkDebugReportCallbackCreateInfoEXT debugReport = {};
+			debugReport.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+			debugReport.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT;
+			debugReport.pfnCallback = DebugReportCallback;
+			debugReport.pUserData = nullptr;
+			Verify("create debug report", vkCreateDebugReportCallbackEXT(instance, &debugReport, allocator, (VkDebugReportCallbackEXT*)&debugCallback));
+		}
 #endif
 
 		uint32_t gpuCount;
@@ -225,8 +232,10 @@ namespace coluster {
 
 		if (instance != VK_NULL_HANDLE) {
 #ifdef _DEBUG
-			PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT");
-			vkDestroyDebugReportCallbackEXT(instance, (VkDebugReportCallbackEXT)debugCallback, allocator);
+			if (hasValidationLayer) {
+				PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT");
+				vkDestroyDebugReportCallbackEXT(instance, (VkDebugReportCallbackEXT)debugCallback, allocator);
+			}
 #endif
 
 			vkDestroyInstance(instance, nullptr);
