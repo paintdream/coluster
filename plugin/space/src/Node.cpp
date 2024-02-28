@@ -2,7 +2,7 @@
 
 namespace coluster {
 	Node::Node() noexcept {}
-	Node::Node(Entity e, Ref&& r) noexcept : entity(e), ref(std::move(r)) {}
+	Node::Node(Entity e, Ref&& r) noexcept : ref(std::move(r)) { key.entity = e; }
 	Node::~Node() noexcept {
 		if (ref) {
 			Warp* currentWarp = Warp::get_current_warp();

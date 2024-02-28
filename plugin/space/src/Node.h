@@ -12,7 +12,25 @@
 namespace coluster {
 	using Vector3 = glm::vec3;
 	using Vector4 = glm::vec4;
-	using Box = std::pair<Vector3, Vector3>;
+
+	// hack for Vector3 -> Vector4 memory mapping
+	struct Box {
+		using first_type = Vector3;
+		using second_type = Vector3;
+		Box() noexcept {}
+		Box(const Vector3& from, const Vector3& to) noexcept : first(from), second(to) {}
+
+		union {
+			struct {
+				Vector3 first;
+				Entity entity;
+			};
+			Vector4 data[1];
+		};
+
+		Vector3 second;
+	};
+
 	using Overlap = TreeOverlap<Box, typename Box::first_type, Vector3::length_type, 6>;
 
 	class Node : public Tree<Box, Overlap> {
@@ -32,7 +50,7 @@ namespace coluster {
 		}
 
 		Entity GetEntity() const noexcept {
-			return entity;
+			return key.entity;
 		}
 
 		const Ref& GetEntityObject() const noexcept {
@@ -44,8 +62,8 @@ namespace coluster {
 		}
 
 	protected:
-		Entity entity = 0;
 		Ref ref;
+		uint32_t flags = 0;
 	};
 
 	class NodeSystem : public Object {
