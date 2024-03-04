@@ -24,11 +24,18 @@ namespace coluster {
 }
 
 // implement for sub types
-#include "Node.h"
+#include "NodeComponent.h"
+#include "TransformComponent.h"
 
 namespace coluster {
 	Ref Space::TypeNodeSystem(LuaState lua) {
-		Ref type = lua.make_type<NodeSystem>("NodeSystem", std::ref(*this));
+		Ref type = lua.make_type<NodeComponentSystem>("NodeComponentSystem", std::ref(*this));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
+		return type;
+	}
+
+	Ref Space::TypeTransformSystem(LuaState lua) {
+		Ref type = lua.make_type<NodeComponentSystem>("NodeComponentSystem", std::ref(*this));
 		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
 		return type;
 	}

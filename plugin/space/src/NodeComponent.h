@@ -1,4 +1,4 @@
-// Node.h
+// NodeComponent.h
 // PaintDream (paintdream@paintdream.com)
 // 2023-12-11
 //
@@ -33,16 +33,16 @@ namespace coluster {
 
 	using Overlap = TreeOverlap<Box, typename Box::first_type, Vector3::length_type, 6>;
 
-	class Node : public Tree<Box, Overlap> {
+	class NodeComponent : public Tree<Box, Overlap> {
 	public:
 		using Base = Tree<Box, Overlap>;
 
-		Node() noexcept;
-		Node(Entity e, Ref&& r) noexcept;
-		~Node() noexcept;
-		Node(Node&& rhs) noexcept : Base(std::move(rhs)), ref(std::move(rhs.ref)) {}
+		NodeComponent() noexcept;
+		NodeComponent(Entity e, Ref&& r) noexcept;
+		~NodeComponent() noexcept;
+		NodeComponent(NodeComponent&& rhs) noexcept : Base(std::move(rhs)), ref(std::move(rhs.ref)) {}
 
-		Node& operator = (Node&& rhs) noexcept {
+		NodeComponent& operator = (NodeComponent&& rhs) noexcept {
 			Base::operator = (std::move(rhs));
 			ref = std::move(rhs.ref);
 
@@ -61,22 +61,32 @@ namespace coluster {
 			return ref;
 		}
 
+		Vector4 Begin() const noexcept {
+			const Vector4* data = key.data;
+			return data[0];
+		}
+
+		Vector4 End() const noexcept {
+			const Vector4* data = key.data;
+			return data[1];
+		}
+
 	protected:
 		Ref ref;
 		uint32_t flags = 0;
 	};
 
-	class NodeSystem : public Object {
+	class NodeComponentSystem : public Object {
 	public:
-		NodeSystem(Space& space);
-		~NodeSystem() noexcept;
+		NodeComponentSystem(Space& space);
+		~NodeComponentSystem() noexcept;
 	
 		void lua_initialize(LuaState lua, int index);
 		void lua_finalize(LuaState lua, int index);
 		static void lua_registar(LuaState lua);
 
 		bool Create(Entity entity, Ref&& ref);
-		void Move(Entity entity, const std::array<float, 6>& boundingBox);
+		bool Move(Entity entity, const std::array<float, 6>& boundingBox);
 		std::vector<Entity> Query(Entity entity, const std::array<float, 6>& boundingBox, const std::vector<float>& convexCuller);
 		Ref GetObject(LuaState lua, Entity entity);
 		void SetObject(LuaState lua, Entity entity, Ref&& ref);
@@ -86,6 +96,6 @@ namespace coluster {
 
 	protected:
 		Space& space;
-		System<Entity, Node> subSystem;
+		System<Entity, NodeComponent> subSystem;
 	};
 }

@@ -23,6 +23,7 @@ namespace coluster {
 		}
 
 		Ref TypeNodeSystem(LuaState lua);
+		Ref TypeTransformSystem(LuaState lua);
 		Entity NewEntity();
 		void DeleteEntity(Entity entity);
 

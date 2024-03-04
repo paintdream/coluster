@@ -31,6 +31,7 @@ namespace coluster {
 
 	Coroutine<void> Channel::Close() noexcept {
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
+		CloseImpl();
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
 	}
 
