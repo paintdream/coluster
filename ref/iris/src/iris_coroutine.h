@@ -118,58 +118,6 @@ namespace iris {
 			execute_handle.resume();
 		}
 
-		// run coroutine and wait util it completes
-		// this function will block the calling thread, so try to avoid it
-		return_t join() {
-			std::atomic<size_t> variable = 0;
-
-			// we apply a new completion handler to implement thread notification
-			// so here we need to save the original one and call it properly
-			auto prev = std::move(handle.promise().completion);
-
-			if constexpr (!std::is_void_v<return_t>) {
-				return_t ret;
-				if (prev) {
-					complete([&variable, &ret, prev = std::move(prev)](return_t&& value) {
-						ret = std::move(value);
-						// call original completion handler
-						prev(std::move(ret));
-
-						// notify the waiting thread
-						variable.store(1, std::memory_order_relaxed);
-						variable.notify_one();
-					});
-				} else {
-					complete([&variable, &ret](return_t&& value) {
-						ret = std::move(value);
-						variable.store(1, std::memory_order_relaxed);
-						variable.notify_one();
-					});
-				}
-				
-				// run and wait
-				run();
-				variable.wait(0, std::memory_order_acquire);
-				return ret;
-			} else {
-				if (prev) {
-					complete([&variable, prev = std::move(prev)]() {
-						prev();
-						variable.store(1, std::memory_order_relaxed);
-						variable.notify_one();
-					});
-				} else {
-					complete([&variable]() {
-						variable.store(1, std::memory_order_relaxed);
-						variable.notify_one();
-					});
-				}
-
-				run();
-				variable.wait(0, std::memory_order_acquire);
-			}
-		}
-
 		// iris_coroutine_t is also awaitable, so here we implement await_* series methods
 		constexpr bool await_ready() const noexcept {
 			return false;
@@ -1058,23 +1006,19 @@ namespace iris {
 
 	// listen specified task completes
 	template <typename async_dispatcher_t>
-	struct iris_listen_dispatch_t : iris_sync_t<typename async_dispatcher_t::warp_t, typename async_dispatcher_t::async_worker_t>
-	{
+	struct iris_listen_dispatch_t : iris_sync_t<typename async_dispatcher_t::warp_t, typename async_dispatcher_t::async_worker_t> {
 		using warp_t = typename async_dispatcher_t::warp_t;
 		using async_worker_t = typename async_dispatcher_t::async_worker_t;
 		using routine_t = typename async_dispatcher_t::routine_t;
 
-		explicit iris_listen_dispatch_t(async_dispatcher_t& disp) : iris_sync_t<warp_t, async_worker_t>(disp.get_async_worker()), dispatcher(disp)
-		{
+		explicit iris_listen_dispatch_t(async_dispatcher_t& disp) : iris_sync_t<warp_t, async_worker_t>(disp.get_async_worker()), dispatcher(disp) {
 			warp_t* warp = nullptr;
-			if constexpr (!std::is_same_v<warp_t, void>)
-			{
+			if constexpr (!std::is_same_v<warp_t, void>) {
 				warp = warp_t::get_current_warp();
 			}
 
 			info.warp = warp;
-			routine = dispatcher.allocate(warp, [this]()
-			{
+			routine = dispatcher.allocate(warp, [this]() {
 				iris_sync_t<warp_t, async_worker_t>::dispatch(std::move(info));
 			});
 		}

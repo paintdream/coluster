@@ -411,6 +411,33 @@ namespace iris {
 			return ref_t(luaL_ref(L, LUA_REGISTRYINDEX));
 		}
 
+		template <typename base_t, typename target_t, typename meta_base_t, typename meta_target_t>
+		void cast_type(meta_base_t&& base_meta, meta_target_t&& target_meta) {
+			IRIS_PROFILE_SCOPE(__FUNCTION__);
+			static_assert(std::is_base_of<base_t, target_t>::value, "Incompatible type cast!");
+			// IRIS_ASSERT(static_cast<base_t*>(reinterpret_cast<target_t*>(~size_t(0))) == reinterpret_cast<base_t*>(~size_t(0)));
+
+			lua_State* L = state;
+			stack_guard_t guard(L);
+			IRIS_ASSERT(*base_meta.template get<const void*>(*this, "__hash") == reinterpret_cast<const void*>(get_hash<base_t>()));
+			IRIS_ASSERT(*target_meta.template get<const void*>(*this, "__hash") == reinterpret_cast<const void*>(get_hash<target_t>()));
+
+			lua_rawgeti(L, LUA_REGISTRYINDEX, target_meta.get());
+			IRIS_ASSERT(lua_type(L, -1) == LUA_TTABLE);
+			lua_rawgeti(L, LUA_REGISTRYINDEX, base_meta.get());
+			IRIS_ASSERT(lua_type(L, -1) == LUA_TTABLE);
+			lua_setmetatable(L, -2);
+			lua_pop(L, 1);
+
+			if constexpr (std::is_rvalue_reference_v<meta_base_t&&>) {
+				deref(std::move(base_meta));
+			}
+
+			if constexpr (std::is_rvalue_reference_v<meta_target_t&&>) {
+				deref(std::move(target_meta));
+			}
+		}
+
 		template <typename type_t, int user_value_count = 0, typename meta_t, typename... args_t>
 		refptr_t<type_t> make_object(meta_t&& meta, args_t&&... args) {
 			IRIS_PROFILE_SCOPE(__FUNCTION__);
@@ -519,7 +546,11 @@ namespace iris {
 			int index;
 		};
 
-		struct context_stack_top {};
+		struct context_stack_top_t {};
+		struct context_stack_where_t {
+			context_stack_where_t(int lv) noexcept : level(lv) {}
+			int level;
+		};
 
 		template <typename value_t, typename key_t>
 		value_t get_context(key_t&& key) {
@@ -536,8 +567,13 @@ namespace iris {
 				return get_variable<value_t>(L, -1);
 			} else if constexpr (std::is_same_v<type_t, context_upvalue_t>) {
 				return get_variable<value_t>(L, lua_upvalueindex(key.index));
-			} else if constexpr (std::is_same_v<type_t, context_stack_top>) {
+			} else if constexpr (std::is_same_v<type_t, context_stack_top_t>) {
 				return lua_gettop(L);
+			} else if constexpr (std::is_same_v<type_t, context_stack_where_t>) {
+				luaL_where(L, key.level);
+				value_t ret = get_variable<value_t>(L, -1);
+				lua_pop(L, 1);
+				return std::move(ret);
 			} else {
 				return value_t();
 			}
@@ -1255,23 +1291,40 @@ namespace iris {
 			} else if constexpr (std::is_pointer_v<value_t>) {
 				if constexpr (!skip_checks) {
 					// try to extract object
-					if (lua_getmetatable(L, index) == LUA_TNIL) {
+					if (!lua_getmetatable(L, index)) {
 						return value_t();
 					}
 
-#if LUA_VERSION_NUM <= 502
-					lua_getfield(L, -1, "__hash");
-					if (lua_type(L, -1) == LUA_TNIL) {
-#else
-					if (lua_getfield(L, -1, "__hash") == LUA_TNIL) {
-#endif
-						lua_pop(L, 2);
-						return value_t();
-					}
-
-					// returns empty if hashes are not equal!
-					void* object_hash = lua_touserdata(L, -1);
+					void* object_hash = nullptr;
 					void* type_hash = reinterpret_cast<void*>(get_hash<std::remove_volatile_t<std::remove_const_t<std::remove_pointer_t<value_t>>>>());
+
+					while (true) {
+#if LUA_VERSION_NUM <= 502
+						lua_getfield(L, -1, "__hash");
+						if (lua_type(L, -1) == LUA_TNIL) {
+#else
+						if (lua_getfield(L, -1, "__hash") == LUA_TNIL) {
+#endif
+							lua_pop(L, 2);
+							return value_t();
+						}
+
+						// returns empty if hashes are not equal!
+						object_hash = lua_touserdata(L, -1);
+
+						if (object_hash != type_hash) {
+							lua_pop(L, 1);
+							if (lua_getmetatable(L, -1)) {
+								lua_replace(L, -2);
+							} else {
+								lua_pop(L, 1);
+								return value_t();
+							}
+						} else {
+							break;
+						}
+					}
+
 					if (object_hash != type_hash) {
 						log_error(L, "iris_lua_t::get_variable() -> Object Hash %p is not matched with Type Hash %p\n", object_hash, type_hash);
 						lua_pop(L, 2);
@@ -1730,29 +1783,8 @@ namespace iris {
 					if (src == nullptr || !lua_getmetatable(L, index)) {
 						target.native_push_variable(nullptr);
 					} else {
-#if LUA_VERSION_NUM <= 502
-						lua_getfield(L, -1, "__hash");
-						if (lua_type(L, -1) != LUA_TNIL) {
-#else
-						if (lua_getfield(L, -1, "__hash") != LUA_TNIL) {
-#endif
-							void* hash = lua_touserdata(L, -1);
-							stack_guard_t guard(T, 1);
-#if LUA_VERSION_NUM <= 502
-							lua_pushlightuserdata(T, hash);
-							lua_rawget(T, LUA_REGISTRYINDEX);
-							if (lua_type(T, -1) == LUA_TNIL) {
-#else
-							if (lua_rawgetp(T, LUA_REGISTRYINDEX, hash) == LUA_TNIL) {
-#endif
-								lua_pop(T, 1);
-								// copy metatable
-								recursion_index = cross_transfer_variable<false>(L, target, -2, recursion_source, recursion_target, recursion_index);
-								lua_pushlightuserdata(T, hash);
-								lua_pushvalue(T, -2);
-								lua_rawset(T, LUA_REGISTRYINDEX);
-							}
-							
+						stack_guard_t guard(T, 1);
+						if (cross_transfer_metatable(L, target, recursion_source, recursion_target, recursion_index) != -1) {
 							if (lua_rawlen(L, absindex) > sizeof(void*)) {
 								// now metatable prepared
 								if constexpr (move) {
@@ -1791,7 +1823,7 @@ namespace iris {
 							target.native_push_variable(nullptr);
 						}
 
-						lua_pop(L, 2);
+						lua_pop(L, 1);
 					}
 
 					break;
@@ -1809,6 +1841,57 @@ namespace iris {
 			}
 
 			return recursion_index;
+		}
+
+	protected:
+		template <typename lua_t>
+		static int cross_transfer_metatable(lua_State* L, lua_t& target, int recursion_source, int recursion_target, int recursion_index) {
+			stack_guard_t guard(L);
+			lua_State* T = target.get_state();
+			stack_guard_t guard_target(T, 1);
+
+#if LUA_VERSION_NUM <= 502
+			lua_getfield(L, -1, "__hash");
+			if (lua_type(L, -1) != LUA_TNIL) {
+#else
+			if (lua_getfield(L, -1, "__hash") != LUA_TNIL) {
+#endif
+				void* hash = lua_touserdata(L, -1);
+
+#if LUA_VERSION_NUM <= 502
+				lua_pushlightuserdata(T, hash);
+				lua_rawget(T, LUA_REGISTRYINDEX);
+				if (lua_type(T, -1) == LUA_TNIL) {
+#else
+				if (lua_rawgetp(T, LUA_REGISTRYINDEX, hash) == LUA_TNIL) {
+#endif
+					lua_pop(T, 1);
+
+					// copy table
+					recursion_index = cross_transfer_variable<false>(L, target, -2, recursion_source, recursion_target, recursion_index);
+
+					// copy metatable
+					if (lua_getmetatable(L, -2)) {
+						int new_index = cross_transfer_metatable(L, target, recursion_source, recursion_target, recursion_index);
+						if (new_index != -1) {
+							recursion_index = new_index;
+							lua_setmetatable(T, -2);
+						}
+						
+						lua_pop(L, 1);
+					}
+
+					lua_pushlightuserdata(T, hash);
+					lua_pushvalue(T, -2);
+					lua_rawset(T, LUA_REGISTRYINDEX);
+				}
+
+				lua_pop(L, 1);
+				return recursion_index;
+			} else {
+				lua_pop(L, 1);
+				return -1;
+			}
 		}
 
 	protected:

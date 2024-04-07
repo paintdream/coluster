@@ -166,16 +166,17 @@ static coroutine_t example_quota(quota_queue_t& q) {
 }
 
 int main(void) {
-	static constexpr size_t thread_count = 8;
+	static constexpr size_t thread_count = 0;
 	static constexpr size_t warp_count = 16;
 	iris_async_worker_t<> worker(thread_count);
+	worker.append(std::thread());
 	worker.start();
 
 	iris_dispatcher_t<warp_t> dispatcher(worker);
-	example_listen(dispatcher).join();
+	example_listen(dispatcher).run();
 	quota_t quota({ 4, 5 });
 	quota_queue_t quota_queue(worker, quota);
-	example_quota(quota_queue).join();
+	example_quota(quota_queue).run();
 
 	std::vector<warp_t> warps;
 	warps.reserve(warp_count);
@@ -208,23 +209,22 @@ int main(void) {
 
 	example_empty().complete([](int&& value) {
 		printf("Complete empty %d!\n", value);
-	}).join();
+	}).run();
 
-	int v = example_empty().join();
-
-	example(worker, nullptr, nullptr, 2).join();
+	example_empty().run();
+	example(worker, nullptr, nullptr, 2).run();
 
 	warps[0].queue_routine_external([&worker, &warps]() {
 		// test for running example from an warp
 		example(worker, &warps[0], &warps[3], 3).run();
-		example(worker, nullptr, nullptr, 4).run(); // cannot call join() here since warps[0] will be blocked
+		example(worker, nullptr, nullptr, 4).run();
 	});
 
 	// test for running example from thread pool
 	worker.queue([&worker, &warps]() {
 		// test for running example from an warp
 		example(worker, &warps[0], &warps[3], 5).run();
-		example(worker, nullptr, nullptr, 6).join(); // can call join() here since we are NOT in any warp
+		example(worker, nullptr, nullptr, 6).run();
 	});
 
 	worker.join();
