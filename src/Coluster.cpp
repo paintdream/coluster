@@ -180,7 +180,7 @@ namespace coluster {
 		yield();
 	}
 
-	Warp::SwitchWarp::SwitchWarp(const std::source_location& source, Warp* target_warp, Warp* other_warp) noexcept : Base(target_warp, other_warp), coroutineAddress(GetCurrentCoroutineAddress()) {
+	Warp::SwitchWarp::SwitchWarp(const std::source_location& source, Warp* target_warp, Warp* other_warp) noexcept : Base(target_warp, other_warp, false, false), coroutineAddress(GetCurrentCoroutineAddress()) {
 		Warp::ChainWait(source, Base::source, Base::target, Base::other);
 		SetCurrentCoroutineAddress(nullptr);
 	}
