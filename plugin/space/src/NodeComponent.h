@@ -18,17 +18,12 @@ namespace coluster {
 		using first_type = Vector3;
 		using second_type = Vector3;
 		Box() noexcept {}
-		Box(const Vector3& from, const Vector3& to) noexcept : first(from), second(to) {}
+		Box(const Vector3& from, const Vector3& to) noexcept : first(from), second(to), entity(0), padding(0) {}
 
-		union {
-			struct {
-				Vector3 first;
-				Entity entity;
-			};
-			Vector4 data[1];
-		};
-
+		Vector3 first;
+		Entity entity;
 		Vector3 second;
+		uint32_t padding;
 	};
 
 	using Overlap = TreeOverlap<Box, typename Box::first_type, Vector3::length_type, 6>;
@@ -62,12 +57,12 @@ namespace coluster {
 		}
 
 		Vector4 Begin() const noexcept {
-			const Vector4* data = key.data;
+			const Vector4* data = reinterpret_cast<const Vector4*>(&key.first);
 			return data[0];
 		}
 
 		Vector4 End() const noexcept {
-			const Vector4* data = key.data;
+			const Vector4* data = reinterpret_cast<const Vector4*>(&key.second);
 			return data[1];
 		}
 

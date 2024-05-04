@@ -96,7 +96,7 @@ namespace coluster {
 		std::vector<Entity> result;
 		Box box(Vector3(boundingBox[0], boundingBox[1], boundingBox[2]), Vector3(boundingBox[3], boundingBox[4], boundingBox[5]));
 		subSystem.for_entity<NodeComponent>(entity, [&result, &box, &convexCuller](auto& nodeBase) {
-			nodeBase.query<true>(box, [&result](auto& subNodeComponentBase) {
+			nodeBase.template query<true>(box, [&result](auto& subNodeComponentBase) {
 				result.emplace_back(static_cast<NodeComponent&>(subNodeComponentBase).GetEntity());
 				return true;
 			}, [&convexCuller](auto& bound) {

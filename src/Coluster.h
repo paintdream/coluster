@@ -157,7 +157,7 @@ namespace coluster {
 		
 		struct SwitchWarp : iris::iris_switch_t<Warp> {
 			using Base = iris::iris_switch_t<Warp>;
-			COLUSTER_API explicit SwitchWarp(const std::source_location& source, Warp* target, Warp* other) noexcept;
+			COLUSTER_API explicit SwitchWarp(const std::source_location& source, Warp* target, Warp* other, bool parallelTarget, bool parallelOther) noexcept;
 			COLUSTER_API bool await_ready() const noexcept;
 			COLUSTER_API void await_suspend(std::coroutine_handle<> handle);
 			COLUSTER_API Warp* await_resume() const noexcept;
@@ -167,7 +167,7 @@ namespace coluster {
 		};
 
 		COLUSTER_API static Warp* get_current_warp() noexcept;
-		COLUSTER_API static SwitchWarp Switch(const std::source_location& source, Warp* target, Warp* other = nullptr) noexcept;
+		COLUSTER_API static SwitchWarp Switch(const std::source_location& source, Warp* target, Warp* other = nullptr, bool parallelTarget = false, bool parallelOther = false) noexcept;
 		COLUSTER_API AsyncWorker& get_async_worker() noexcept;
 		COLUSTER_API explicit Warp(AsyncWorker& asyncWorker) : Base(asyncWorker) { assert(!asyncWorker.is_terminated()); }
 		COLUSTER_API void BindLuaRoot(lua_State* L) noexcept;

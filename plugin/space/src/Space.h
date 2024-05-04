@@ -22,8 +22,10 @@ namespace coluster {
 			return theSystems;
 		}
 
-		Ref TypeNodeSystem(LuaState lua);
-		Ref TypeTransformSystem(LuaState lua);
+		Ref TypeNodeComponentSystem(LuaState lua);
+		Ref TypeTransformComponentSystem(LuaState lua);
+		Ref TypeDataPipe(LuaState lua);
+		Ref TypeObjectDict(LuaState lua);
 		Entity NewEntity();
 		void DeleteEntity(Entity entity);
 

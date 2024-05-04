@@ -60,8 +60,8 @@ namespace coluster {
 		return Base::get_async_worker();
 	}
 
-	Warp::SwitchWarp Warp::Switch(const std::source_location& source, Warp* target, Warp* other) noexcept {
-		return SwitchWarp(source, target, other);
+	Warp::SwitchWarp Warp::Switch(const std::source_location& source, Warp* target, Warp* other, bool parallelTarget, bool parallelOther) noexcept {
+		return SwitchWarp(source, target, other, parallelTarget, parallelOther);
 	}
 
 	lua_State* Warp::GetLuaRoot() const noexcept {
@@ -180,7 +180,7 @@ namespace coluster {
 		yield();
 	}
 
-	Warp::SwitchWarp::SwitchWarp(const std::source_location& source, Warp* target_warp, Warp* other_warp) noexcept : Base(target_warp, other_warp, false, false), coroutineAddress(GetCurrentCoroutineAddress()) {
+	Warp::SwitchWarp::SwitchWarp(const std::source_location& source, Warp* target_warp, Warp* other_warp, bool parallelTarget, bool parallelOther) noexcept : Base(target_warp, other_warp, parallelTarget, parallelOther), coroutineAddress(GetCurrentCoroutineAddress()) {
 		Warp::ChainWait(source, Base::source, Base::target, Base::other);
 		SetCurrentCoroutineAddress(nullptr);
 	}

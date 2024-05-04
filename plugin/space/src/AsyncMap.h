@@ -10,13 +10,13 @@ namespace coluster {
 	struct AsyncMap {
 		using MapType = MapTemplate<K, V>;
 		explicit AsyncMap(AsyncWorker& worker) : asyncWorker(worker) {
-			maps.resize(asyncWorker.GetSharedWarps().size());
+			//maps = std::vector<MapType>(asyncWorker.GetSharedWarps().size());
 		}
 
-		struct Awaitable : protected Warp::SwitchWarp {
+		struct AwaitableGet : protected Warp::SwitchWarp {
 			using Base = typename Warp::SwitchWarp;
 			template <typename T>
-			Awaitable(const std::source_location& source, MapType& map, Warp* target, T&& k) noexcept : Base(source, target, nullptr), asyncMap(map), key(std::forward<T>(k)) {}
+			AwaitableGet(const std::source_location& source, MapType& map, Warp* target, T&& k) noexcept : Base(source, target, nullptr, true, false), asyncMap(map), key(std::forward<T>(k)) {}
 
 			bool await_ready() const noexcept {
 				return Base::await_ready();
@@ -26,26 +26,61 @@ namespace coluster {
 				Base::await_suspend(std::move(handle));
 			}
 
-			V& await_resume() noexcept {
-				return asyncMap[key];
+			V* await_resume() noexcept {
+				auto it = asyncMap.find(key);
+				if (it != asyncMap.end()) {
+					return &(it->second);
+				} else {
+					return nullptr;
+				}
 			}
 
 			MapType& asyncMap;
 			K key;
 		};
 
-		size_t GetIndex(const K& key) const {
-			return std::hash<std::remove_cvref_t<K>>()(key) % maps.size();
-		}
+		struct AwaitableSet : protected Warp::SwitchWarp {
+			using Base = typename Warp::SwitchWarp;
+			template <typename T, typename U>
+			AwaitableSet(const std::source_location& source, MapType& map, Warp* target, T&& k, U&& u) noexcept : Base(source, target, nullptr, false, false), asyncMap(map), key(std::forward<T>(k)), value(std::forward<U>(u)) {}
 
-		Warp* GetWarp(const K& key) const {
-			return asyncWorker.GetSharedWarps()[GetIndex(key)].get();
+			bool await_ready() const noexcept {
+				return Base::await_ready();
+			}
+
+			void await_suspend(std::coroutine_handle<>&& handle) {
+				Base::await_suspend(std::move(handle));
+			}
+
+			void await_resume() noexcept {
+				asyncMap.emplace(std::move(key), std::move(value));
+			}
+
+			MapType& asyncMap;
+			K key;
+			V value;
+		};
+
+		template <typename T>
+		size_t GetIndex(T&& key) const {
+			return std::hash<std::remove_cvref_t<T>>()(key) % maps.size();
 		}
 
 		template <typename T>
-		Awaitable operator [](T&& key) {
+		Warp* GetWarp(T&& key) const {
+			return asyncWorker.GetSharedWarps()[GetIndex(std::forward<T>(key))].get();
+		}
+
+		template <typename T>
+		AwaitableGet Get(T&& key) {
 			size_t index = GetIndex(key);
-			return Awaitable(std::source_location::current(), maps[index], asyncWorker.GetSharedWarps()[index].get(), std::forward<T>(key));
+			return AwaitableGet(std::source_location::current(), maps[index], asyncWorker.GetSharedWarps()[index].get(), std::forward<T>(key));
+		}
+
+		template <typename T, typename U>
+		AwaitableSet Set(T&& key, U&& value) {
+			size_t index = GetIndex(key);
+			return AwaitableSet(std::source_location::current(), maps[index], asyncWorker.GetSharedWarps()[index].get(), std::forward<T>(key), std::forward<U>(value));
 		}
 
 	protected:
