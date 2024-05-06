@@ -25,9 +25,12 @@ namespace coluster {
 		Ref TypeNodeComponentSystem(LuaState lua);
 		Ref TypeTransformComponentSystem(LuaState lua);
 		Ref TypeDataPipe(LuaState lua);
+		Ref TypeDataBuffer(LuaState lua);
 		Ref TypeObjectDict(LuaState lua);
-		Entity NewEntity();
+
+		Entity CreateEntity();
 		void DeleteEntity(Entity entity);
+		void ClearEntities();
 
 	protected:
 		AsyncWorker& asyncWorker;

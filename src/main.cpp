@@ -71,10 +71,9 @@ protected:
 	Ref cothreadRef;
 	size_t mainThreadIndex = ~size_t(0);
 	std::atomic<Status> workerStatus = Status_Ready;
-	// AsyncMap<std::string, int, std::unordered_map> asyncMap;
 };
 
-Coluster::Coluster() : cothread(nullptr)/* , asyncMap(*this) */ {}
+Coluster::Coluster() : cothread(nullptr) {}
 
 // Lua stubs
 void Coluster::lua_registar(LuaState lua) {

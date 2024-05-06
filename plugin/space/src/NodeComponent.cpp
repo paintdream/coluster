@@ -25,6 +25,8 @@ namespace coluster {
 	void NodeComponentSystem::lua_finalize(LuaState lua, int index) {}
 	void NodeComponentSystem::lua_registar(LuaState lua) {
 		lua.set_current<&NodeComponentSystem::Create>("Create");
+		lua.set_current<&NodeComponentSystem::Delete>("Delete");
+		lua.set_current<&NodeComponentSystem::Clear>("Clear");
 		lua.set_current<&NodeComponentSystem::Move>("Move");
 		lua.set_current<&NodeComponentSystem::GetObject>("GetObject");
 		lua.set_current<&NodeComponentSystem::SetObject>("SetObject");
@@ -36,6 +38,14 @@ namespace coluster {
 
 	bool NodeComponentSystem::Create(Entity entity, Ref&& ref) {
 		return subSystem.insert(entity, NodeComponent(entity, std::move(ref)));
+	}
+
+	void NodeComponentSystem::Delete(Entity entity) {
+		subSystem.remove(entity);
+	}
+
+	void NodeComponentSystem::Clear() {
+		subSystem.clear();
 	}
 
 	Ref NodeComponentSystem::GetObject(LuaState lua, Entity entity) {

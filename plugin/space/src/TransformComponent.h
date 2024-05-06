@@ -13,6 +13,7 @@ namespace coluster {
 	class TransformComponent {
 	public:
 		TransformComponent() noexcept;
+		TransformComponent(const Matrix4x4& mat) noexcept : matrix(mat) {}
 
 	protected:
 		Matrix4x4 matrix;
@@ -26,6 +27,10 @@ namespace coluster {
 		void lua_initialize(LuaState lua, int index);
 		void lua_finalize(LuaState lua, int index);
 		static void lua_registar(LuaState lua);
+
+		bool Create(Entity entity, const std::array<float, 16>& data);
+		void Delete(Entity entity);
+		void Clear();
 
 	protected:
 		Space& space;

@@ -18,7 +18,7 @@ namespace coluster {
 		bool BindInputWarp(Warp* warp) noexcept;
 		bool BindOutputWarp(Warp* warp) noexcept;
 
-		void Push(std::string_view data);
+		Coroutine<void> Push(std::string_view data);
 		Coroutine<std::string> Pop();
 		bool Empty() const noexcept;
 
@@ -51,13 +51,14 @@ namespace coluster {
 			DataPipe* value = nullptr;
 		};
 
-		static void CheckedPush(RequiredDataPipe<true>&& self, std::string_view data);
+		static Coroutine<void> CheckedPush(RequiredDataPipe<true>&& self, std::string_view data);
 		static Coroutine<std::string> CheckedPop(RequiredDataPipe<false>&& self);
 		static bool CheckedEmpty(RequiredDataPipe<false>&& self);
 
 	protected:
 		AsyncPipe<size_t> asyncPipe;
 		QueueList<uint8_t> dataQueueList;
+		AsyncWorker::MemoryQuotaQueue::resource_t memoryQuotaResource;
 		Warp* inputWarp = nullptr;
 		Warp* outputWarp = nullptr;
 	};

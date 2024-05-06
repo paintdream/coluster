@@ -18,12 +18,11 @@ namespace coluster {
 		using first_type = Vector3;
 		using second_type = Vector3;
 		Box() noexcept {}
-		Box(const Vector3& from, const Vector3& to) noexcept : first(from), second(to), entity(0), padding(0) {}
+		Box(const Vector3& from, const Vector3& to) noexcept : first(from), second(to), entity(0) {}
 
 		Vector3 first;
 		Entity entity;
 		Vector3 second;
-		uint32_t padding;
 	};
 
 	using Overlap = TreeOverlap<Box, typename Box::first_type, Vector3::length_type, 6>;
@@ -81,6 +80,8 @@ namespace coluster {
 		static void lua_registar(LuaState lua);
 
 		bool Create(Entity entity, Ref&& ref);
+		void Delete(Entity entity);
+		void Clear();
 		bool Move(Entity entity, const std::array<float, 6>& boundingBox);
 		std::vector<Entity> Query(Entity entity, const std::array<float, 6>& boundingBox, const std::vector<float>& convexCuller);
 		Ref GetObject(LuaState lua, Entity entity);

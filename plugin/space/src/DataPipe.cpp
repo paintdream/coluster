@@ -35,8 +35,8 @@ namespace coluster {
 		lua.set_current<&DataPipe::CheckedEmpty>("Empty");
 	}
 
-	void DataPipe::CheckedPush(RequiredDataPipe<true>&& self, std::string_view data) {
-		self->Push(data);
+	Coroutine<void> DataPipe::CheckedPush(RequiredDataPipe<true>&& self, std::string_view data) {
+		return self->Push(data);
 	}
 
 	Coroutine<std::string> DataPipe::CheckedPop(RequiredDataPipe<false>&& self) {
@@ -53,8 +53,9 @@ namespace coluster {
 		return dataQueueList.probe(sizeof(size_t) + 1);
 	}
 
-	void DataPipe::Push(std::string_view data) {
+	Coroutine<void> DataPipe::Push(std::string_view data) {
 		assert(Warp::get_current_warp() == inputWarp);
+		memoryQuotaResource.merge(co_await asyncPipe.get_async_worker().GetMemoryQuotaQueue().guard({ data.size(), 0 }));
 		auto guard = in_fence();
 		dataQueueList.push(data.data(), data.data() + data.size());
 		asyncPipe.emplace(data.size());
@@ -67,7 +68,8 @@ namespace coluster {
 		std::string data;
 		data.resize(size);
 		dataQueueList.pop(data.data(), data.data() + size);
+		memoryQuotaResource.release({ data.size(), 0 });
 
-		co_return data;
+		co_return std::move(data);
 	}
 }
