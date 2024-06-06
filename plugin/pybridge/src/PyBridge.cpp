@@ -39,7 +39,7 @@ namespace coluster {
 				do {
 					deletingObjectRoutineState.store(queue_state_executing, std::memory_order_release);
 					while (!deletingObjects.empty()) {
-						Py_DecRef(deletingObjects.top());
+						Py_DECREF(deletingObjects.top());
 						deletingObjects.pop();
 					}
 
@@ -70,7 +70,7 @@ namespace coluster {
 			PyGILGuard guard;
 			PyObject* globals = PyEval_GetGlobals();
 			object = PyDict_GetItemString(globals, name.data());
-			Py_DecRef(globals);
+			Py_DECREF(globals);
 		} while (false);
 
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
@@ -112,12 +112,12 @@ namespace coluster {
 			PyObject* tuple = PyTuple_New(parameters.size());
 			for (size_t i = 0; i < parameters.size(); i++) {
 				PyObject* arg = parameters[i]->GetPyObject();
-				Py_IncRef(arg);
+				Py_INCREF(arg);
 				PyTuple_SetItem(tuple, i, arg);
 			}
 
 			object = PyObject_CallObject(callable.get()->GetPyObject(), tuple);
-			Py_DecRef(tuple);
+			Py_DECREF(tuple);
 
 		} while (false);
 
@@ -200,7 +200,7 @@ namespace coluster {
 			}
 			case LUA_TLIGHTUSERDATA:
 			{
-				Py_IncRef(Py_None);
+				Py_INCREF(Py_None);
 				return Py_None;
 			}
 			case LUA_TNUMBER:
@@ -221,7 +221,7 @@ namespace coluster {
 #if PY_MAJOR_VERSION < 3
 				return PyString_FromStringAndSize(view.data(), view.size());
 #else
-				return PyByteArray_FromStringAndSize(view.data(), view.size());
+				return PyUnicode_FromStringAndSize(view.data(), view.size());
 #endif
 			}
 			case LUA_TTABLE:
@@ -231,9 +231,12 @@ namespace coluster {
 				if (len != 0) {
 					// Convert to list 
 					PyObject* listObject = PyList_New(len);
+
 					for (size_t i = 0; i < len; i++) {
 						lua_rawgeti(L, absindex, static_cast<int>(i));
-						PyList_SetItem(listObject, i, PackObject(lua, -1));
+						PyList_SET_ITEM(listObject, i, PackObject(lua, -1));
+
+						lua_pop(L, 1);
 					}
 
 					return listObject;
@@ -242,7 +245,12 @@ namespace coluster {
 					lua_pushnil(L);
 
 					while (lua_next(L, absindex) != 0) {
-						PyDict_SetItem(dictObject, PackObject(lua, -2), PackObject(lua, -1));
+						PyObject* key = PackObject(lua, -2);
+						PyObject* value = PackObject(lua, -1);
+						PyDict_SetItem(dictObject, key, value);
+						Py_DECREF(key);
+						Py_DECREF(value);
+
 						lua_pop(L, 1);
 					}
 
@@ -253,12 +261,12 @@ namespace coluster {
 			case LUA_TUSERDATA:
 			case LUA_TTHREAD:
 			{
-				Py_IncRef(Py_None);
+				Py_INCREF(Py_None);
 				return Py_None;
 			}
 			default:
 			{
-				Py_IncRef(Py_None);
+				Py_INCREF(Py_None);
 				return Py_None;
 			}
 		}
