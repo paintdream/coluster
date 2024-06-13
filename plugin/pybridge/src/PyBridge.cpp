@@ -1,4 +1,5 @@
 #include "PyBridge.h"
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
 namespace coluster {
@@ -113,12 +114,11 @@ namespace coluster {
 			for (size_t i = 0; i < parameters.size(); i++) {
 				PyObject* arg = parameters[i]->GetPyObject();
 				Py_INCREF(arg);
-				PyTuple_SetItem(tuple, i, arg);
+				PyTuple_SET_ITEM(tuple, i, arg);
 			}
 
 			object = PyObject_CallObject(callable.get()->GetPyObject(), tuple);
 			Py_DECREF(tuple);
-
 		} while (false);
 
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
@@ -153,7 +153,7 @@ namespace coluster {
 			co_return RefPtr<Object>();
 		}
 	}
-	
+
 	Ref PyBridge::FetchObjectType(LuaState lua, Warp* warp, Ref&& self) {
 		assert(warp != nullptr);
 		assert(warp == Warp::get_current_warp());

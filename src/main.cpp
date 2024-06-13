@@ -548,7 +548,7 @@ void Coluster::doREPL(lua_State* L) {
 }
 
 bool Coluster::Poll(bool pollAsyncTasks) {
-	if (!scriptWarp->join()) {
+	if (!scriptWarp->join([] {std::this_thread::sleep_for(std::chrono::milliseconds(50)); })) {
 		return !pollAsyncTasks || AsyncWorker::poll(Priority_Highest);
 	} else {
 		return false;
@@ -591,7 +591,7 @@ bool Coluster::Join(LuaState lua, Ref&& finalizer, bool enableConsole) {
 
 			// manually polling events
 			while (!AsyncWorker::is_terminated()) {
-				AsyncWorker::poll_delay(Priority_Highest, 20);
+				AsyncWorker::poll_delay(Priority_Highest, std::chrono::milliseconds(20));
 			}
 
 			scriptWarp->Acquire();
@@ -610,7 +610,7 @@ bool Coluster::Join(LuaState lua, Ref&& finalizer, bool enableConsole) {
 	mainThreadIndex = ~size_t(0);
 	AsyncWorker::make_current(mainThreadIndex);
 	sharedWarps.clear();
-	while (!scriptWarp->join()) {}
+	while (!scriptWarp->join([] {std::this_thread::sleep_for(std::chrono::milliseconds(50)); })) {}
 
 	if (finalizer) {
 		lua.call<void>(std::move(finalizer));

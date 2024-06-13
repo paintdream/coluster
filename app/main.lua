@@ -5,7 +5,7 @@ end
 -- for debugging from Visual Studio
 local platform = os.getenv('OS')
 if platform and platform:find("^Windows") then
-	package.cpath = package.cpath .. ";../build/Debug/?.dll"
+	package.cpath = package.cpath .. ";../build32/Debug/?.dll;../build/Debug/?.dll"
 end
 
 warn = function (message)
