@@ -4,7 +4,7 @@ Database.__index = Database
 function Database.New(coluster, services)
 	local instance = {}
 	setmetatable(instance, Database)
-	local import = require("util/import")
+	local import = require("Util/Import")
 
 	instance.object = require("database").new()
 	instance.types = import.FetchTypes(instance.object)

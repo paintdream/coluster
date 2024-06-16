@@ -140,7 +140,7 @@ namespace coluster {
 			lua_State* L = lua.get_state();
 			LuaState::stack_guard_t stackGuard(L);
 
-			lua_rawgeti(L, LUA_REGISTRYINDEX, ref.get());
+			lua_rawgeti(L, LUA_REGISTRYINDEX, ref.get_ref_value());
 			object = PackObject(lua, -1);
 			lua_pop(L, 1);
 		} while (false);

@@ -150,7 +150,7 @@ namespace coluster {
 
 		if (sqlite3_prepare_v2(handle, sqlTemplate.data(), -1, &stmt, 0) == SQLITE_OK) {
 			if (postData) {
-				lua_rawgeti(D, LUA_REGISTRYINDEX, postData.get());
+				lua_rawgeti(D, LUA_REGISTRYINDEX, postData.get_ref_value());
 				int size = iris::iris_verify_cast<int>(lua_rawlen(D, -1));
 
 				int startIndex = 1;

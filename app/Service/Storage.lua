@@ -4,7 +4,7 @@ Storage.__index = Storage
 function Storage.New(coluster, services)
 	local instance = {}
 	setmetatable(instance, Storage)
-	local import = require("util/import")
+	local import = require("Util/Import")
 
 	instance.object = require("storage").new()
 	instance.types = import.FetchTypes(instance.object)

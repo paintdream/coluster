@@ -3,12 +3,12 @@
 --[[
 	location ~ /path/to/service {
 		default_type text/html;
-	    content_by_lua_file /path/to/index.lua;
+	    content_by_lua_file /path/to/Index.lua;
 	}
 ]]
 
 local status, message = pcall(function ()
-	local initWorker = require("init_worker")
+	local initWorker = require("InitWorker")
 	ngx.say('hello, lua nginx!' .. tostring(initWorker.GetColuster()))
 end)
 

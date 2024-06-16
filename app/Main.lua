@@ -20,7 +20,7 @@ coluster:Post(function ()
 	print("Initializing coluster services ...")
 	
 	local function Service(name)
-		local serviceModule = assert(require("service/" .. name))
+		local serviceModule = assert(require("Service/" .. name))
 		print("New service: " .. name)
 		local value = serviceModule.New(coluster, services)
 		if value then
@@ -32,12 +32,13 @@ coluster:Post(function ()
 		end
 	end
 	
-	Service("storage")
-	Service("database")
-	Service("luabridge")
-	Service("device")
-	Service("coordinator")
-	Service("example")
+	Service("Storage")
+	Service("Database")
+	Service("LuaBridge")
+	Service("PyBridge")
+	Service("Device")
+	Service("Coordinator")
+	Service("Example")
 	
 	print("Initializing coluster services complete.")
 end)

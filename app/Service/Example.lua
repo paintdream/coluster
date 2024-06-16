@@ -2,11 +2,11 @@ local Example = {}
 Example.__index = Example
 
 local function Main(coluster, services)
-	local concurrent = require("util/concurrent")
+	local concurrent = require("Util/Concurrent")
 
-	local device = services.device
-	local storage = services.storage
-	local luabridge = services.luabridge
+	local device = services.Device
+	local storage = services.Storage
+	local luabridge = services.LuaBridge
 
 	local remotePrint = luabridge.object:Get("print")
 	luabridge.object:Call(remotePrint, "hello luabridge! ", 716)
@@ -29,7 +29,7 @@ local function Main(coluster, services)
 	end
 	]]
 
-	local database = services.database.object
+	local database = services.Database.object
 	if database:Initialize(":memory:", true) then
 		print("Write data to db ...")
 		database:Execute([[

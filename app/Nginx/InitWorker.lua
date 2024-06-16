@@ -4,7 +4,7 @@
 	init_worker_by_lua_block {
 		package.path = package.path .. ";/path/to/lua/?.lua"
 		package.cpath = package.cpath .. ";/path/to/luabin/?.dll;/path/toluabin/?.so"
-		require "init_worker"
+		require "InitWorker"
 	}
 ]]
 

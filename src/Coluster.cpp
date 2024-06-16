@@ -117,7 +117,7 @@ namespace coluster {
 
 				Ref trace = std::move(*scriptWarp->GetProfileTable().get(lua, "trace"));
 
-				lua_rawgeti(L, LUA_REGISTRYINDEX, trace.get());
+				lua_rawgeti(L, LUA_REGISTRYINDEX, trace.get_ref_value());
 				lua_pushlightuserdata(L, address);
 				lua_rawget(L, LUA_REGISTRYINDEX); // get thread
 
@@ -149,7 +149,7 @@ namespace coluster {
 				LuaState lua(L);
 
 				Ref trace = std::move(*scriptWarp->GetProfileTable().get(lua, "trace"));
-				lua_rawgeti(L, LUA_REGISTRYINDEX, trace.get());
+				lua_rawgeti(L, LUA_REGISTRYINDEX, trace.get_ref_value());
 				lua_pushlightuserdata(L, address);
 				lua_rawget(L, LUA_REGISTRYINDEX); // get thread
 

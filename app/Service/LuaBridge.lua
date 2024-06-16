@@ -4,7 +4,7 @@ LuaBridge.__index = LuaBridge
 function LuaBridge.New(coluster, services)
 	local instance = {}
 	setmetatable(instance, LuaBridge)
-	local import = require("util/import")
+	local import = require("Util/Import")
 
 	instance.object = require("luabridge").new()
 	instance.types = import.FetchTypes(instance.object)
