@@ -2,6 +2,16 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+namespace iris {
+	template <>
+	struct iris_lua_convert_t<coluster::PyBridge::StackIndex> {
+		static constexpr bool value = true;
+		static coluster::PyBridge::StackIndex from_lua(lua_State* L, int index) {
+			return coluster::PyBridge::StackIndex { index };
+		}
+	};
+}
+
 namespace coluster {
 	struct PyGILGuard {
 		PyGILGuard() {
@@ -34,7 +44,7 @@ namespace coluster {
 		deletingObjects.push(object);
 
 		if (deletingObjectRoutineState.exchange(queue_state_pending, std::memory_order_release) == queue_state_idle) {
-			GetWarp().queue_routine([this]() {
+			GetWarp().queue_routine_post([this]() {
 				PyGILGuard guard;
 				size_t expected;
 				do {
@@ -50,15 +60,31 @@ namespace coluster {
 		}
 	}
 
-	void PyBridge::lua_initialize(LuaState lua, int index) {}
+	void PyBridge::lua_initialize(LuaState lua, int index) {
+		if (!Py_IsInitialized()) {
+			Py_Initialize();
+			PyEval_SaveThread();
+		}
+
+		lua_State* L = lua.get_state();
+		LuaState::stack_guard_t guard(L);
+		dataExchangeRef = lua.make_thread([&](LuaState lua) {
+			dataExchangeStack = lua.get_state();
+		});
+	}
+
 	void PyBridge::lua_finalize(LuaState lua, int index) {
 		isFinalizing = true;
+		dataExchangeStack = nullptr;
 		get_async_worker().Synchronize(lua, this);
+		lua.deref(std::move(dataExchangeRef));
 		isFinalizing = false;
 	}
 
 	void PyBridge::lua_registar(LuaState lua) {
 		lua.set_current<&PyBridge::Call>("Call");
+		lua.set_current<&PyBridge::Pack>("Pack");
+		lua.set_current<&PyBridge::Unpack>("Unpack");
 		lua.set_current<&PyBridge::Import>("Import");
 		lua.set_current<&PyBridge::Get>("Get");
 	}
@@ -70,8 +96,16 @@ namespace coluster {
 		do {
 			PyGILGuard guard;
 			PyObject* globals = PyEval_GetGlobals();
-			object = PyDict_GetItemString(globals, name.data());
-			Py_DECREF(globals);
+			if (globals != nullptr) {
+				object = PyDict_GetItemString(globals, name.data());
+				Py_DECREF(globals);
+			}
+
+			if (object == nullptr) {
+				PyObject* builtins = PyEval_GetBuiltins();
+				object = PyDict_GetItemString(builtins, name.data());
+				Py_DECREF(builtins);
+			}
 		} while (false);
 
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
@@ -101,20 +135,25 @@ namespace coluster {
 		}
 	}
 
-	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Call(LuaState lua, Required<Object*> callable, std::vector<Object*>&& params) {
+	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Call(LuaState lua, Required<Object*> callable, StackIndex parameters) {
 		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
-		std::vector<Object*> parameters = std::move(params);
+		lua_State* D = dataExchangeStack;
+		lua_State* L = lua.get_state();
+		int org = lua_gettop(L);
+		int count = org - parameters.index + 1;
+		lua_xmove(L, D, count);
+		lua_settop(L, org);
+		LuaState dataExchange(D);
+
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 
 		PyObject* object = nullptr;
 		do {
 			PyGILGuard guard;
 			// make parameter tuple
-			PyObject* tuple = PyTuple_New(parameters.size());
-			for (size_t i = 0; i < parameters.size(); i++) {
-				PyObject* arg = parameters[i]->GetPyObject();
-				Py_INCREF(arg);
-				PyTuple_SET_ITEM(tuple, i, arg);
+			PyObject* tuple = PyTuple_New(count);
+			for (int i = 0; i < count; i++) {
+				PyTuple_SET_ITEM(tuple, i, PackObject(dataExchange, i + 1));
 			}
 
 			object = PyObject_CallObject(callable.get()->GetPyObject(), tuple);
@@ -122,6 +161,8 @@ namespace coluster {
 		} while (false);
 
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
+		lua_settop(D, 0);
+
 		if (!isFinalizing) {
 			co_return lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, object);
 		} else {
@@ -130,8 +171,9 @@ namespace coluster {
 		}
 	}
 
-	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Pack(LuaState lua, Ref&& ref) {
+	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Pack(LuaState lua, Ref&& r) {
 		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
+		Ref ref = std::move(r);
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), Warp::get_current_warp(), &GetWarp());
 
 		PyObject* object = nullptr;
@@ -140,7 +182,7 @@ namespace coluster {
 			lua_State* L = lua.get_state();
 			LuaState::stack_guard_t stackGuard(L);
 
-			lua_rawgeti(L, LUA_REGISTRYINDEX, ref.get_ref_value());
+			lua.native_push_variable(std::move(ref));
 			object = PackObject(lua, -1);
 			lua_pop(L, 1);
 		} while (false);
@@ -257,13 +299,17 @@ namespace coluster {
 					return dictObject;
 				}
 			}
-			case LUA_TFUNCTION:
 			case LUA_TUSERDATA:
-			case LUA_TTHREAD:
 			{
-				Py_INCREF(Py_None);
-				return Py_None;
+				Object* object = lua.native_get_variable<Object*>(index);
+				if (object != nullptr) {
+					PyObject* existed = object->GetPyObject();
+					Py_INCREF(existed);
+					return existed;
+				}
 			}
+			case LUA_TFUNCTION:
+			case LUA_TTHREAD:
 			default:
 			{
 				Py_INCREF(Py_None);

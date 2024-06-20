@@ -7,6 +7,11 @@ local function Main(coluster, services)
 	local device = services.Device
 	local storage = services.Storage
 	local luabridge = services.LuaBridge
+	local pybridge = services.PyBridge
+	if pybridge.object then
+		local pyPrint = pybridge.object:Get("print")
+		pybridge.object:Call(pyPrint, "hello, pybridge!", 716)
+	end
 
 	local remotePrint = luabridge.object:Get("print")
 	luabridge.object:Call(remotePrint, "hello luabridge! ", 716)

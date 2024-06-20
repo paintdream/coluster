@@ -6,8 +6,16 @@ function PyBridge.New(coluster, services)
 	setmetatable(instance, PyBridge)
 	local import = require("Util/Import")
 
-	instance.object = require("pybridge").new()
-	instance.types = import.FetchTypes(instance.object)
+	local status, message = pcall(function ()
+		require("pybridge")
+		instance.object = mod.new()
+		instance.types = import.FetchTypes(instance.object)
+	end)
+
+	if not status then
+		print(message)
+	end
+
 	return instance
 end
 
