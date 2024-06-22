@@ -186,8 +186,8 @@ namespace coluster {
 		status = Status::Invalid;
 
 		dataExchangeStack = nullptr;
-		get_async_worker().Synchronize(lua, this);
 		lua.deref(std::move(dataExchangeRef));
+		get_async_worker().Synchronize(lua, this);
 	}
 
 	void LuaBridge::lua_registar(LuaState lua) {

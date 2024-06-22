@@ -63,7 +63,7 @@ namespace coluster {
 	void PyBridge::lua_initialize(LuaState lua, int index) {
 		if (!Py_IsInitialized()) {
 			Py_Initialize();
-			PyEval_SaveThread();
+			threadState = PyEval_SaveThread();
 		}
 
 		lua_State* L = lua.get_state();
@@ -79,8 +79,14 @@ namespace coluster {
 		status = Status::Invalid;
 
 		dataExchangeStack = nullptr;
-		get_async_worker().Synchronize(lua, this);
 		lua.deref(std::move(dataExchangeRef));
+		get_async_worker().Synchronize(lua, this);
+
+		if (threadState != nullptr) {
+			PyEval_RestoreThread(threadState);
+			threadState = nullptr;
+			Py_Finalize();
+		}
 	}
 
 	void PyBridge::lua_registar(LuaState lua) {
@@ -105,13 +111,17 @@ namespace coluster {
 			PyObject* globals = PyEval_GetGlobals();
 			if (globals != nullptr) {
 				object = PyDict_GetItemString(globals, name.data());
-				Py_DECREF(globals);
 			}
 
 			if (object == nullptr) {
 				PyObject* builtins = PyEval_GetBuiltins();
-				object = PyDict_GetItemString(builtins, name.data());
-				Py_DECREF(builtins);
+				if (builtins != nullptr) {
+					object = PyDict_GetItemString(builtins, name.data());
+				}
+			}
+
+			if (object != nullptr) {
+				Py_INCREF(object);
 			}
 		} while (false);
 

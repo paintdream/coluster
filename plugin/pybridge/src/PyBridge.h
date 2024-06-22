@@ -8,6 +8,8 @@
 #include "PyBridgeCommon.h"
 
 typedef struct _object PyObject;
+typedef struct _ts PyThreadState;
+
 namespace coluster {
 	class PyBridge : public Object, protected Warp {
 	public:
@@ -26,6 +28,18 @@ namespace coluster {
 		public:
 			Object(PyBridge& bridge, PyObject* object) noexcept;
 			~Object() noexcept;
+
+			Object(const Object& rhs) noexcept = delete;
+			Object(Object&& rhs) noexcept : bridge(rhs.bridge), object(rhs.object) {
+				rhs.object = nullptr;
+			}
+
+			Object& operator = (const Object& rhs) = delete;
+			Object& operator = (Object&& rhs) noexcept {
+				assert(&bridge == &rhs.bridge);
+				rhs.object = std::exchange(object, rhs.object);
+				return *this;
+			}
 
 			PyObject* GetPyObject() const noexcept;
 
@@ -59,6 +73,7 @@ namespace coluster {
 		Ref dataExchangeRef;
 		lua_State* dataExchangeStack = nullptr;
 		Status status = Status::Invalid;
+		PyThreadState* threadState = nullptr;
 	};
 }
 
