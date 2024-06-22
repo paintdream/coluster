@@ -216,7 +216,7 @@ namespace coluster {
 	}
 
 	Device::~Device() noexcept {
-		while (queueingState.load(std::memory_order_acquire) != queue_state_idle) {
+		while (queueingState.load(std::memory_order_acquire) != queue_state_t::idle) {
 			queueingState.wait(queueingState.load(std::memory_order_relaxed), std::memory_order_acquire);
 		}
 
@@ -281,7 +281,7 @@ namespace coluster {
 			vkQueueSubmit(queue, 1, &info, completion.GetFence());
 			requestSubmitCompletions.push(&completion);
 
-			if (queueingState.exchange(queue_state_pending, std::memory_order_release) == queue_state_idle) {
+			if (queueingState.exchange(queue_state_t::pending, std::memory_order_release) == queue_state_t::idle) {
 				get_async_worker().queue([this]() { PollOnHelper(); }, Priority_Normal);
 			}
 		});
@@ -306,10 +306,10 @@ namespace coluster {
 	void Device::PollOnHelper() {
 		// must not in any warps
 		assert(Warp::get_current_warp() == nullptr);
-		assert(queueingState.load(std::memory_order_acquire) == queue_state_pending);
+		assert(queueingState.load(std::memory_order_acquire) == queue_state_t::pending);
 
 		while (true) {
-			queueingState.store(queue_state_executing, std::memory_order_release);
+			queueingState.store(queue_state_t::executing, std::memory_order_release);
 
 			while (!requestSubmitCompletions.empty()) {
 				SubmitCompletion* completion = requestSubmitCompletions.top();
@@ -339,8 +339,8 @@ namespace coluster {
 				}
 			}
 
-			size_t expected = queue_state_executing;
-			if (queueingState.compare_exchange_strong(expected, queue_state_idle, std::memory_order_release)) {
+			queue_state_t expected = queue_state_t::executing;
+			if (queueingState.compare_exchange_strong(expected, queue_state_t::idle, std::memory_order_release)) {
 				queueingState.notify_one();
 				break;
 			}

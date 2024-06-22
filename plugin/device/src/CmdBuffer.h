@@ -24,13 +24,13 @@ namespace coluster {
 		void Begin() noexcept;
 		void End() noexcept;
 
-		enum EncodeState : uint32_t {
+		enum class EncodeState : uint32_t {
 			Ready = 0,
 			Recording,
 			Complete,
 		};
 
-		enum SubmitState : uint32_t {
+		enum class SubmitState : uint32_t {
 			Idle = 0,
 			Queueing,
 		};

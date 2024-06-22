@@ -7,7 +7,7 @@ function PyBridge.New(coluster, services)
 	local import = require("Util/Import")
 
 	local status, message = pcall(function ()
-		require("pybridge")
+		local mod = require("pybridge")
 		instance.object = mod.new()
 		instance.types = import.FetchTypes(instance.object)
 	end)

@@ -43,19 +43,19 @@ namespace coluster {
 	void PyBridge::QueueDeleteObject(PyObject* object) {
 		deletingObjects.push(object);
 
-		if (deletingObjectRoutineState.exchange(queue_state_pending, std::memory_order_release) == queue_state_idle) {
+		if (deletingObjectRoutineState.exchange(queue_state_t::pending, std::memory_order_release) == queue_state_t::idle) {
 			GetWarp().queue_routine_post([this]() {
 				PyGILGuard guard;
-				size_t expected;
+				queue_state_t expected;
 				do {
-					deletingObjectRoutineState.store(queue_state_executing, std::memory_order_release);
+					deletingObjectRoutineState.store(queue_state_t::executing, std::memory_order_release);
 					while (!deletingObjects.empty()) {
 						Py_DECREF(deletingObjects.top());
 						deletingObjects.pop();
 					}
 
-					expected = queue_state_executing;
-				} while (!deletingObjectRoutineState.compare_exchange_strong(expected, queue_state_idle, std::memory_order_release));
+					expected = queue_state_t::executing;
+				} while (!deletingObjectRoutineState.compare_exchange_strong(expected, queue_state_t::idle, std::memory_order_release));
 			});
 		}
 	}
@@ -71,14 +71,16 @@ namespace coluster {
 		dataExchangeRef = lua.make_thread([&](LuaState lua) {
 			dataExchangeStack = lua.get_state();
 		});
+
+		status = Status::Ready;
 	}
 
 	void PyBridge::lua_finalize(LuaState lua, int index) {
-		isFinalizing = true;
+		status = Status::Invalid;
+
 		dataExchangeStack = nullptr;
 		get_async_worker().Synchronize(lua, this);
 		lua.deref(std::move(dataExchangeRef));
-		isFinalizing = false;
 	}
 
 	void PyBridge::lua_registar(LuaState lua) {
@@ -90,6 +92,11 @@ namespace coluster {
 	}
 
 	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Get(LuaState lua, std::string_view name) {
+		if (status != Status::Ready) {
+			co_return RefPtr<Object>();
+		}
+
+		status = Status::Pending;
 		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		PyObject* object = nullptr;
@@ -109,15 +116,22 @@ namespace coluster {
 		} while (false);
 
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
-		if (!isFinalizing) {
+		if (status != Status::Invalid) {
+			status = Status::Ready;
 			co_return lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, object);
 		} else {
 			lua.deref(std::move(s));
+			QueueDeleteObject(object);
 			co_return RefPtr<Object>();
 		}
 	}
 
 	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Import(LuaState lua, std::string_view name) {
+		if (status != Status::Ready) {
+			co_return RefPtr<Object>();
+		}
+
+		status = Status::Pending;
 		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		PyObject* object = nullptr;
@@ -127,15 +141,22 @@ namespace coluster {
 		} while (false);
 
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
-		if (!isFinalizing) {
+		if (status != Status::Invalid) {
+			status = Status::Ready;
 			co_return lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, object);
 		} else {
 			lua.deref(std::move(s));
+			QueueDeleteObject(object);
 			co_return RefPtr<Object>();
 		}
 	}
 
 	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Call(LuaState lua, Required<Object*> callable, StackIndex parameters) {
+		if (status != Status::Ready) {
+			co_return RefPtr<Object>();
+		}
+
+		status = Status::Pending;
 		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		lua_State* D = dataExchangeStack;
 		lua_State* L = lua.get_state();
@@ -163,15 +184,22 @@ namespace coluster {
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		lua_settop(D, 0);
 
-		if (!isFinalizing) {
+		if (status != Status::Invalid) {
+			status = Status::Ready;
 			co_return lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, object);
 		} else {
 			lua.deref(std::move(s));
+			QueueDeleteObject(object);
 			co_return RefPtr<Object>();
 		}
 	}
 
 	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Pack(LuaState lua, Ref&& r) {
+		if (status != Status::Ready) {
+			co_return RefPtr<Object>();
+		}
+
+		status = Status::Pending;
 		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		Ref ref = std::move(r);
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), Warp::get_current_warp(), &GetWarp());
@@ -179,19 +207,21 @@ namespace coluster {
 		PyObject* object = nullptr;
 		do {
 			PyGILGuard guard;
-			lua_State* L = lua.get_state();
+			lua_State* L = dataExchangeStack;
+			LuaState dataExchange(L);
 			LuaState::stack_guard_t stackGuard(L);
-
-			lua.native_push_variable(std::move(ref));
-			object = PackObject(lua, -1);
+			dataExchange.native_push_variable(std::move(ref));
+			object = PackObject(dataExchange, -1);
 			lua_pop(L, 1);
 		} while (false);
 
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
-		if (!isFinalizing) {
+		if (status != Status::Invalid) {
+			status = Status::Ready;
 			co_return lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, object);
 		} else {
 			lua.deref(std::move(s));
+			QueueDeleteObject(object);
 			co_return RefPtr<Object>();
 		}
 	}
@@ -218,17 +248,27 @@ namespace coluster {
 		return objectTypeRef;
 	}
 
-	Coroutine<Ref> PyBridge::Unpack(LuaState lua, RefPtr<Object>&& object) {
+	Coroutine<Ref> PyBridge::Unpack(LuaState lua, RefPtr<Object>&& obj) {
+		if (status != Status::Ready) {
+			co_return RefPtr<Object>();
+		}
+
+		status = Status::Pending;
+		RefPtr<Object> object = std::move(obj);
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), Warp::get_current_warp(), &GetWarp());
-		lua_State* L = lua.get_state();
 
 		do {
 			PyGILGuard guard;
-			UnpackObject(lua, object->GetPyObject());
+			UnpackObject(LuaState(dataExchangeStack), object->GetPyObject());
 		} while (false);
 
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
-		co_return Ref(luaL_ref(L, LUA_REGISTRYINDEX));
+		if (status != Status::Invalid) {
+			status = Status::Ready;
+			co_return Ref(luaL_ref(dataExchangeStack, LUA_REGISTRYINDEX));
+		} else {
+			co_return Ref();
+		}
 	}
 
 	PyObject* PyBridge::PackObject(LuaState lua, int index) {
@@ -325,6 +365,7 @@ namespace coluster {
 
 		if (object == Py_None) {
 			lua.native_push_variable(nullptr);
+		} else {
 			if (type == &PyBool_Type) {
 				lua.native_push_variable(object != Py_False);
 			} else if (type == &PyLong_Type) {

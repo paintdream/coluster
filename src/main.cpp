@@ -31,9 +31,9 @@ int luaL_requiref(lua_State* L, const char* modname, lua_CFunction openf, int gl
 class Coluster : public AsyncWorker {
 public:
 	enum Status : size_t {
-		Status_Ready,
-		Status_Running,
-		Status_Stopping,
+		Ready,
+		Running,
+		Stopping,
 	};
 
 	// Lua stubs
@@ -70,7 +70,7 @@ protected:
 	LuaState cothread;
 	Ref cothreadRef;
 	size_t mainThreadIndex = ~size_t(0);
-	std::atomic<Status> workerStatus = Status_Ready;
+	std::atomic<Status> workerStatus = Status::Ready;
 };
 
 Coluster::Coluster() : cothread(nullptr) {}
@@ -141,10 +141,10 @@ void Coluster::lua_initialize(LuaState lua, int index) {
 }
 
 void Coluster::lua_finalize(LuaState lua, int index) {
-	if (workerStatus.load(std::memory_order_acquire) == Status_Running) {
+	if (workerStatus.load(std::memory_order_acquire) == Status::Running) {
 		Stop();
 		Join(lua, Ref(), false);
-		assert(workerStatus.load(std::memory_order_acquire) == Status_Ready);
+		assert(workerStatus.load(std::memory_order_acquire) == Status::Ready);
 	}
 
 	lua.deref(std::move(cothreadRef));
@@ -157,11 +157,11 @@ void Coluster::lua_finalize(LuaState lua, int index) {
 
 std::string_view Coluster::GetStatus() const noexcept {
 	switch (workerStatus.load(std::memory_order_acquire)) {
-		case Status_Ready:
+		case Status::Ready:
 			return "Ready";
-		case Status_Running:
+		case Status::Running:
 			return "Running";
-		case Status_Stopping:
+		case Status::Stopping:
 			return "Stoping";
 	}
 
@@ -179,8 +179,8 @@ bool Coluster::Start(LuaState lua, size_t threadCount) {
 
 	count = std::max(count, iris::iris_verify_cast<size_t>(Priority_Count)); // at least Priority_Count threads
 
-	Status expected = Status_Ready;
-	if (workerStatus.compare_exchange_strong(expected, Status_Running, std::memory_order_relaxed)) {
+	Status expected = Status::Ready;
+	if (workerStatus.compare_exchange_strong(expected, Status::Running, std::memory_order_relaxed)) {
 		AsyncWorker::resize(count);
 		mainThreadIndex = AsyncWorker::append(std::thread()); // for main thread polling
 		AsyncWorker::start();
@@ -232,8 +232,8 @@ bool Coluster::Post(LuaState lua, Ref&& callback) {
 }
 
 bool Coluster::Stop() {
-	Status expected = Status_Running;
-	if (workerStatus.compare_exchange_strong(expected, Status_Stopping, std::memory_order_relaxed)) {
+	Status expected = Status::Running;
+	if (workerStatus.compare_exchange_strong(expected, Status::Stopping, std::memory_order_relaxed)) {
 		AsyncWorker::terminate();
 		return true;
 	} else {
@@ -574,7 +574,7 @@ bool Coluster::Join(LuaState lua, Ref&& finalizer, bool enableConsole) {
 		return false;
 	}
 
-	if (workerStatus.load(std::memory_order_acquire) == Status_Stopping) {
+	if (workerStatus.load(std::memory_order_acquire) == Status::Stopping) {
 		AsyncWorker::join();
 	} else {
 		do {
@@ -604,7 +604,7 @@ bool Coluster::Join(LuaState lua, Ref&& finalizer, bool enableConsole) {
 		} while (false);
 
 		::signal(SIGINT, originalSignalHandler);
-		assert(workerStatus.load(std::memory_order_acquire) == Status_Stopping);
+		assert(workerStatus.load(std::memory_order_acquire) == Status::Stopping);
 	}
 
 	mainThreadIndex = ~size_t(0);
@@ -620,7 +620,7 @@ bool Coluster::Join(LuaState lua, Ref&& finalizer, bool enableConsole) {
 	scriptWarp->UnbindLuaRoot(lua.get_state());
 	scriptWarp.reset();
 
-	workerStatus.store(Status_Ready, std::memory_order_release);
+	workerStatus.store(Status::Ready, std::memory_order_release);
 
 	return true;
 }

@@ -30,11 +30,11 @@ namespace coluster {
 		File(Storage& storage) noexcept;
 		~File() noexcept;
 
-		enum Status : uint8_t {
-			Status_Invalid,
-			Status_Ready,
-			Status_Reading,
-			Status_Writing,
+		enum class Status : uint8_t {
+			Invalid,
+			Ready,
+			Reading,
+			Writing,
 		};
 
 		static void lua_registar(LuaState lua);
@@ -64,7 +64,7 @@ namespace coluster {
 #else
 		int fileFd;
 #endif
-		Status status = Status_Invalid;
+		Status status = Status::Invalid;
 	};
 }
 

@@ -28,18 +28,18 @@ namespace coluster {
 		bool BindBuffer(std::string_view name, Required<RefPtr<Buffer>> buffer, size_t offset);
 		Coroutine<bool> Dispatch(Required<CmdBuffer*> cmdBuffer, std::array<uint32_t, 3> dispatchCount);
 
-		enum Status {
-			Status_Invalid,
-			Status_Preparing,
-			Status_Executing,
-			Status_Completed
+		enum class Status {
+			Invalid,
+			Preparing,
+			Executing,
+			Completed
 		};
 
 		Status GetStatus() const noexcept { return status; }
 
 	protected:
 		VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
-		Status status = Status_Invalid;
+		Status status = Status::Invalid;
 		RefPtr<Shader> shader;
 		std::vector<RefPtr<Image>> imageResources;
 		std::vector<RefPtr<Buffer>> bufferResources;

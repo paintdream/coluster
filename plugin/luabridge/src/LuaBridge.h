@@ -14,6 +14,12 @@ namespace coluster {
 		LuaBridge(AsyncWorker& asyncWorker);
 		~LuaBridge() noexcept override;
 
+		enum class Status : uint8_t {
+			Invalid,
+			Ready,
+			Pending
+		};
+
 		Warp& GetWarp() noexcept { return *this; }
 
 		class Object {
@@ -51,13 +57,14 @@ namespace coluster {
 		Ref FetchObjectType(LuaState lua, Warp* warp, Ref&& self);
 
 	protected:
-		std::atomic<size_t> deletingObjectRoutineState = queue_state_idle;
+		std::atomic<queue_state_t> deletingObjectRoutineState = queue_state_t::idle;
 		QueueList<Ref> deletingObjects;
 
 	protected:
 		lua_State* state = nullptr;
 		lua_State* dataExchangeStack = nullptr;
 		Ref dataExchangeRef;
+		Status status = Status::Invalid;
 	};
 }
 

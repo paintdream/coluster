@@ -33,13 +33,13 @@ namespace coluster {
 	{}
 
 	File::~File() noexcept {
-		if (status != Status_Invalid) {
+		if (status != Status::Invalid) {
 			Close();
 		}
 	}
 
 	Coroutine<bool> File::Open(std::string_view path, bool write) {
-		if (status != Status_Invalid) {
+		if (status != Status::Invalid) {
 			fprintf(stderr, "[WARNING] File::OpenSync() -> Initializing twice takes no effects!\n");
 			co_return false;
 		}
@@ -76,7 +76,7 @@ namespace coluster {
 		}
 
 		if (result) {
-			status = Status_Ready;
+			status = Status::Ready;
 		}
 
 		co_return std::move(result);
@@ -137,14 +137,14 @@ namespace coluster {
 #endif
 
 	Coroutine<std::string_view> File::Read(size_t offset, size_t length) {
-		if (status != Status_Ready || length == 0)
+		if (status != Status::Ready || length == 0)
 			co_return "";
 
 		// allocate memory resource quota before allocating
 		AsyncWorker& asyncWorker = storage.GetAsyncWorker();
 		std::string_view result;
 		if (auto guard = write_fence()) {
-			status = Status_Reading;
+			status = Status::Reading;
 			if (!storage.IsSupportAsyncIO()) {
 				// go user space async io
 				Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), static_cast<Warp*>(nullptr));
@@ -246,15 +246,15 @@ namespace coluster {
 			}
 		}
 
-		status = Status_Ready;
+		status = Status::Ready;
 		co_return std::move(result);
 	}
 
 	Coroutine<size_t> File::Write(size_t offset, std::string_view input) {
-		if (status != Status_Ready || input.size() == 0)
+		if (status != Status::Ready || input.size() == 0)
 			co_return 0;
 
-		status = Status_Writing;
+		status = Status::Writing;
 		size_t result = 0;
 
 		if (auto guard = write_fence()) {
@@ -357,13 +357,13 @@ namespace coluster {
 			}
 		}
 
-		status = Status_Ready;
+		status = Status::Ready;
 		co_return std::move(result);
 	}
 
 	void File::Flush() {
 		auto guard = write_fence();
-		if (status != Status_Ready) {
+		if (status != Status::Ready) {
 			fprintf(stderr, "[WARNING] File::Flush() -> Not ready!\n");
 			return;
 		}
@@ -384,7 +384,7 @@ namespace coluster {
 
 	bool File::Close() {
 		auto guard = write_fence();
-		if (status != Status_Ready) {
+		if (status != Status::Ready) {
 			fprintf(stderr, "[WARNING] File::Flush() -> Not ready!\n");
 			return false;
 		}
@@ -400,7 +400,7 @@ namespace coluster {
 			fileFd = 0;
 		}
 #endif
-		status = Status_Invalid;
+		status = Status::Invalid;
 		return true;
 	}
 }

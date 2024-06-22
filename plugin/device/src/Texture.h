@@ -17,13 +17,13 @@ namespace coluster {
 		Texture(Storage& storage) noexcept;
 		~Texture() noexcept override;
 
-		enum Status : uint8_t {
-			Status_Invalid,
-			Status_Ready,
-			Status_Reading,
-			Status_Writing,
-			Status_Uploading,
-			Status_Downloading
+		enum class Status : uint8_t {
+			Invalid,
+			Ready,
+			Reading,
+			Writing,
+			Uploading,
+			Downloading
 		};
 
 		static void lua_registar(LuaState lua);
@@ -45,7 +45,7 @@ namespace coluster {
 		AsyncWorker::MemoryQuotaQueue::resource_t memoryQuotaResource;
 		std::pair<uint32_t, uint32_t> resolution;
 		std::string buffer;
-		Status status = Status_Invalid;
+		Status status = Status::Invalid;
 	};
 }
 

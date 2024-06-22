@@ -38,7 +38,7 @@ namespace coluster {
 		}
 
 		// Schedule to command buffer
-		status = Status_Executing;
+		status = Status::Executing;
 		
 		// add barriers for image & buffer
 		std::vector<VkImageMemoryBarrier> imageBarriers;
@@ -111,12 +111,12 @@ namespace coluster {
 		// co_await cmdBuffer.get()->WaitCompletion();
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
 
-		status = Status_Completed;
+		status = Status::Completed;
 		co_return true; // done!
 	}
 
 	bool Pass::BindImage(std::string_view name, Required<RefPtr<Image>> img) {
-		if (!shader || status != Status_Preparing || descriptorSet == VK_NULL_HANDLE) {
+		if (!shader || status != Status::Preparing || descriptorSet == VK_NULL_HANDLE) {
 			fprintf(stderr, "[ERROR] Pass::BindImage() -> Uninitialized Pass!\n");
 			return false;
 		}
@@ -153,7 +153,7 @@ namespace coluster {
 	}
 
 	bool Pass::BindBuffer(std::string_view name, Required<RefPtr<Buffer>> buf, size_t offset) {
-		if (!shader || status != Status_Preparing || descriptorSet == VK_NULL_HANDLE) {
+		if (!shader || status != Status::Preparing || descriptorSet == VK_NULL_HANDLE) {
 			fprintf(stderr, "[ERROR] Pass::BindBuffer() -> Uninitialized Pass!\n");
 			return false;
 		}
@@ -191,7 +191,7 @@ namespace coluster {
 			co_return false;
 		}
 
-		if (status != Status_Invalid) {
+		if (status != Status::Invalid) {
 			fprintf(stderr, "[WARNING] Pass::Initialize() -> Pass status error!\n");
 			co_return false;
 		}
@@ -214,7 +214,7 @@ namespace coluster {
 
 		if (descriptorSet != VK_NULL_HANDLE) {
 			shader = std::move(s.get());
-			status = Status_Preparing;
+			status = Status::Preparing;
 			co_return true;
 		} else {
 			co_return false;
@@ -222,7 +222,7 @@ namespace coluster {
 	}
 
 	void Pass::lua_finalize(LuaState lua, int index) {
-		assert(status != Status_Executing);
+		assert(status != Status::Executing);
 
 		if (descriptorSet != VK_NULL_HANDLE) {
 			vkFreeDescriptorSets(device.GetDevice(), device.GetDescriptorPool(), 1, &descriptorSet);
@@ -241,7 +241,7 @@ namespace coluster {
 			lua.deref(std::move(shader));
 		}
 
-		status = Status_Invalid;
+		status = Status::Invalid;
 	}
 	
 	void Pass::lua_registar(LuaState lua) {

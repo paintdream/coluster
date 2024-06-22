@@ -43,31 +43,37 @@ namespace coluster {
 	void LuaBridge::QueueDeleteObject(Ref&& ref) {
 		deletingObjects.push(std::move(ref));
 
-		if (deletingObjectRoutineState.exchange(queue_state_pending, std::memory_order_release) == queue_state_idle) {
+		if (deletingObjectRoutineState.exchange(queue_state_t::pending, std::memory_order_release) == queue_state_t::idle) {
 			GetWarp().queue_routine_post([this]() {
 				LuaState target(state);
-				size_t expected;
+				queue_state_t expected;
 				do {
-					deletingObjectRoutineState.store(queue_state_executing, std::memory_order_release);
+					deletingObjectRoutineState.store(queue_state_t::executing, std::memory_order_release);
 					while (!deletingObjects.empty()) {
 						target.deref(std::move(deletingObjects.top()));
 						deletingObjects.pop();
 					}
 
-					expected = queue_state_executing;
-				} while (!deletingObjectRoutineState.compare_exchange_strong(expected, queue_state_idle, std::memory_order_release));
+					expected = queue_state_t::executing;
+				} while (!deletingObjectRoutineState.compare_exchange_strong(expected, queue_state_t::idle, std::memory_order_release));
 			});
 		}
 	}
 
 	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Get(LuaState lua, std::string_view name) {
+		if (status != Status::Ready) {
+			co_return RefPtr<Object>();
+		}
+
+		status = Status::Pending;
 		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		LuaState target(state);
 		Ref ref = target.get_global<Ref>(name);
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
 
-		if (dataExchangeStack != nullptr) {
+		if (status != Status::Invalid) {
+			status = Status::Ready;
 			co_return lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, std::move(ref));
 		} else {
 			lua.deref(std::move(s));
@@ -77,13 +83,19 @@ namespace coluster {
 	}
 
 	Coroutine<RefPtr<LuaBridge::Object>> LuaBridge::Load(LuaState lua, std::string_view code) {
+		if (status != Status::Ready) {
+			co_return RefPtr<Object>();
+		}
+
+		status = Status::Pending;
 		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		LuaState target(state);
 		Ref ref = target.load(code);
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
 
-		if (dataExchangeStack != nullptr) {
+		if (status != Status::Invalid) {
+			status = Status::Ready;
 			co_return lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, std::move(ref));
 		} else {
 			lua.deref(std::move(s));
@@ -93,6 +105,11 @@ namespace coluster {
 	}
 
 	Coroutine<LuaBridge::StackIndex> LuaBridge::Call(LuaState lua, Required<Object*> callable, StackIndex parameters) {
+		if (status != Status::Ready) {
+			co_return StackIndex { nullptr, 0 };
+		}
+
+		status = Status::Pending;
 		// copy parameters
 		lua_State* D = dataExchangeStack;
 		lua_State* L = lua.get_state();
@@ -127,7 +144,12 @@ namespace coluster {
 		release(std::move(T));
 
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
-		co_return StackIndex { dataExchange, ret };
+		if (status != Status::Invalid) {
+			status = Status::Ready;
+			co_return StackIndex { dataExchange, ret };
+		} else {
+			co_return StackIndex { nullptr, 0 };
+		}
 	}
 
 	Ref LuaBridge::FetchObjectType(LuaState lua, Warp* warp, Ref&& self) {
@@ -158,9 +180,13 @@ namespace coluster {
 		dataExchangeRef = lua.make_thread([&](LuaState lua) {
 			dataExchangeStack = lua.get_state();
 		});
+
+		status = Status::Ready;
 	}
 
 	void LuaBridge::lua_finalize(LuaState lua, int index) {
+		status = Status::Invalid;
+
 		dataExchangeStack = nullptr;
 		get_async_worker().Synchronize(lua, this);
 		lua.deref(std::move(dataExchangeRef));

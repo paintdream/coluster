@@ -103,16 +103,16 @@ namespace coluster {
 		Warp& GetWarp() noexcept { return *this; }
 		AsyncWorker& GetAsyncWorker() noexcept { return get_async_worker(); }
 
-		enum DeviceQuotaType {
-			DeviceQuotaType_DescriptorSet,
-			DeviceQuotaType_DescriptorUniform,
-			DeviceQuotaType_DescriptorBuffer,
-			DeviceQuotaType_DescriptorImage,
-			DeviceQuotaType_Count
+		enum class DeviceQuotaType : size_t {
+			DescriptorSet,
+			DescriptorUniform,
+			DescriptorBuffer,
+			DescriptorImage,
+			Count
 		};
 
 		// descriptorSet, descriptorBuffer, descriptorImage
-		using DeviceQuota = Quota<size_t, DeviceQuotaType_Count>;
+		using DeviceQuota = Quota<size_t, (size_t)DeviceQuotaType::Count>;
 		using DeviceQuotaQueue = QuotaQueue<DeviceQuota, Warp, AsyncWorker>;
 
 		DeviceQuotaQueue& GetQuotaQueue() noexcept {
@@ -159,7 +159,7 @@ namespace coluster {
 		std::vector<VkFence> pollingFences;
 		std::vector<SubmitCompletion*> pollingSubmitCompletions;
 		QueueList<SubmitCompletion*> requestSubmitCompletions;
-		std::atomic<size_t> queueingState = queue_state_idle;
+		std::atomic<queue_state_t> queueingState = queue_state_t::idle;
 
 #ifdef _DEBUG
 		uint64_t debugCallback = 0;

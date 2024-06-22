@@ -10,7 +10,7 @@ local function Main(coluster, services)
 	local pybridge = services.PyBridge
 	if pybridge.object then
 		local pyPrint = pybridge.object:Get("print")
-		pybridge.object:Call(pyPrint, "hello, pybridge!", 716)
+		pybridge.object:Call(pyPrint, pybridge.object:Pack("hello, pybridge!"), 716)
 	end
 
 	local remotePrint = luabridge.object:Get("print")

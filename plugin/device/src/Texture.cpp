@@ -28,7 +28,7 @@ namespace coluster {
 			return false;
 		}
 
-		if (status != Status_Invalid && status != Status_Ready) {
+		if (status != Status::Invalid && status != Status::Ready) {
 			fprintf(stderr, "[ERROR] Texture::SetPixels() -> Invalid status!\n");
 			return false;
 		}
@@ -36,7 +36,7 @@ namespace coluster {
 		resolution = res;
 		buffer = content;
 
-		status = Status_Ready;
+		status = Status::Ready;
 		return true;
 	}
 
@@ -44,7 +44,7 @@ namespace coluster {
 		uint8_t* decoded = nullptr;
 
 		if (auto guard = write_fence()) {
-			if (status != Status_Invalid) {
+			if (status != Status::Invalid) {
 				fprintf(stderr, "[ERROR] Texture::Load() -> Invalid status!\n");
 				co_return false;
 			}
@@ -55,7 +55,7 @@ namespace coluster {
 				co_return false;
 			}
 
-			status = Status_Reading;
+			status = Status::Reading;
 			Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), static_cast<Warp*>(nullptr));
 			std::string_view data = co_await file.get()->Read(0, iris::iris_verify_cast<size_t>(size));
 			int width, height;
@@ -68,7 +68,7 @@ namespace coluster {
 				resolution = { width, height };
 				WebPFree(decoded);
 
-				status = Status_Ready;
+				status = Status::Ready;
 			} else {
 				fprintf(stderr, "[ERROR] Texture::Load() -> Decode failed!\n");
 			}
@@ -82,12 +82,12 @@ namespace coluster {
 	Coroutine<bool> Texture::Save(LuaState lua, Required<File*> file) {
 		bool ret = false;
 		if (auto guard = write_fence()) {
-			if (status != Status_Ready) {
+			if (status != Status::Ready) {
 				fprintf(stderr, "[ERROR] Texture::Save() -> Invalid status!\n");
 				co_return false;
 			}
 			
-			status = Status_Writing;
+			status = Status::Writing;
 			Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), static_cast<Warp*>(nullptr));
 
 			uint8_t* output = nullptr;
@@ -95,7 +95,7 @@ namespace coluster {
 			size_t writeBytes = co_await file.get()->Write(0, std::string_view(reinterpret_cast<char*>(output), bytes));
 			WebPFree(output);
 
-			status = Status_Ready;
+			status = Status::Ready;
 			co_await Warp::Switch(std::source_location::current(), currentWarp);
 
 			ret = writeBytes == bytes;
@@ -107,12 +107,12 @@ namespace coluster {
 	Coroutine<bool> Texture::Upload(LuaState lua, Required<CmdBuffer*> cmdBuffer, Required<Image*> image) {
 		bool success = false;
 		if (auto guard = write_fence()) {
-			status = Status_Uploading;
+			status = Status::Uploading;
 			if (image.get()->Initialize(VK_IMAGE_TYPE_2D, VK_FORMAT_R8G8B8A8_UNORM, resolution.first, resolution.second, 1)) {
 				success = co_await image.get()->Upload(lua, std::move(cmdBuffer), buffer);
 			}
 
-			status = Status_Ready;
+			status = Status::Ready;
 		}
 
 		co_return std::move(success);
@@ -121,11 +121,11 @@ namespace coluster {
 	Coroutine<bool> Texture::Download(LuaState lua, Required<CmdBuffer*> cmdBuffer, Required<Image*> image) {
 		bool success = false;
 		if (auto guard = write_fence()) {
-			status = Status_Uploading;
+			status = Status::Uploading;
 			size_t length = (size_t)resolution.first * resolution.second * 4;
 			memoryQuotaResource = co_await storage.GetAsyncWorker().GetMemoryQuotaQueue().guard({length, 0});
 			buffer = co_await image.get()->Download(lua, std::move(cmdBuffer));
-			status = Status_Ready;
+			status = Status::Ready;
 			success = !buffer.empty();
 		}
 
