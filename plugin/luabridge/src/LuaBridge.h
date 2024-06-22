@@ -8,7 +8,7 @@
 #include "LuaBridgeCommon.h"
 
 namespace coluster {
-	class LuaBridge : public Object, protected Warp, public Pool<LuaBridge, lua_State*, 256> {
+	class LuaBridge : public Object, protected Warp {
 	public:
 		using PoolBase = Pool<LuaBridge, lua_State*, 256>;
 		LuaBridge(AsyncWorker& asyncWorker);
@@ -45,12 +45,6 @@ namespace coluster {
 		void lua_initialize(LuaState lua, int index);
 		void lua_finalize(LuaState lua, int index);
 		static void lua_registar(LuaState lua);
-
-		template <typename element_t>
-		[[nodiscard]] element_t acquire_element();
-
-		template <typename element_t>
-		void release_element(element_t element);
 
 	protected:
 		void QueueDeleteObject(Ref&& object);
