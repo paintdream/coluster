@@ -478,7 +478,7 @@ namespace coluster {
 
 	Ref Device::TypeTexture(LuaState lua) {
 		if (!storage) {
-			LuaState::log_error(lua.get_state(), "[ERROR] Device::TypeTexture() -> Must call Initialize() to pass storage instance before calling me (%p)!", this);
+			LuaState::systrap(lua.get_state(), "error.protocol", "[ERROR] Device::TypeTexture() -> Must call Initialize() to pass storage instance before calling me (%p)!", this);
 			return Ref();
 		}
 

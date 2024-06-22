@@ -90,7 +90,7 @@ namespace coluster {
 		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		LuaState target(state);
-		Ref ref = target.load(code);
+		Ref ref = target.load(code).value_or(Ref());
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
 
 		if (status != Status::Invalid) {
@@ -130,7 +130,7 @@ namespace coluster {
 
 		// make async call
 		co_await Warp::Switch(std::source_location::current(), &GetWarp());
-		int ret = target.native_call(callable.get()->GetRef(), count);
+		int ret = target.native_call(callable.get()->GetRef(), count).value_or(0);
 
 		if (ret != 0) {
 			// copy return values
