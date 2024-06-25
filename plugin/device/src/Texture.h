@@ -27,15 +27,15 @@ namespace coluster {
 		};
 
 		static void lua_registar(LuaState lua);
-		Coroutine<bool> Load(LuaState lua, Required<File*> file);
-		Coroutine<bool> Save(LuaState lua, Required<File*> file);
-		Coroutine<bool> Upload(LuaState lua, Required<CmdBuffer*> cmdBuffer, Required<Image*> image);
-		Coroutine<bool> Download(LuaState lua, Required<CmdBuffer*> cmdBuffer, Required<Image*> image);
+		Coroutine<Result<bool>> Load(LuaState lua, Required<File*> file);
+		Coroutine<Result<bool>> Save(LuaState lua, Required<File*> file);
+		Coroutine<Result<bool>> Upload(LuaState lua, Required<CmdBuffer*> cmdBuffer, Required<Image*> image);
+		Coroutine<Result<bool>> Download(LuaState lua, Required<CmdBuffer*> cmdBuffer, Required<Image*> image);
 		std::string_view GetPixels() const noexcept {
 			return buffer;
 		}
 
-		bool SetPixels(std::string_view content, std::pair<uint32_t, uint32_t> resolution);
+		Result<bool> SetPixels(std::string_view content, std::pair<uint32_t, uint32_t> resolution);
 		std::pair<uint32_t, uint32_t> GetResolution() const noexcept {
 			return resolution;
 		}

@@ -85,12 +85,7 @@ namespace coluster {
 		co_return std::move(ret);
 	}
 
-	Coroutine<bool> Channel::Setup(std::string_view protocol, std::string_view address) {
-		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
-		CloseImpl();
-
-		auto guard = write_fence();
-
+	Coroutine<Result<bool>> Channel::Setup(std::string_view protocol, std::string_view address) {
 		// select protocol
 		int protoindex = 0;
 		if (protocol == "PUB") {
@@ -106,8 +101,14 @@ namespace coluster {
 		} else if (protocol == "REP") {
 			protoindex = NN_REP;
 		} else {
-			fprintf(stderr, "[ERROR] Channel::Setup() -> Unknown protocol %s\n", protocol.data());
+			co_return Result<bool>(std::nullopt, "[ERROR] Channel::Setup() -> Unknown protocol.");
 		}
+
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
+		CloseImpl();
+
+		auto guard = write_fence();
+
 
 		bool ret = false;
 		if (protoindex != 0) {

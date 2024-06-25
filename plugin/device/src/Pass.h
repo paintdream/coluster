@@ -23,10 +23,10 @@ namespace coluster {
 		
 		static void lua_registar(LuaState lua);
 		void lua_finalize(LuaState lua, int index);
-		Coroutine<bool> Initialize(Required<RefPtr<Shader>> s);
-		bool BindImage(std::string_view name, Required<RefPtr<Image>> image);
-		bool BindBuffer(std::string_view name, Required<RefPtr<Buffer>> buffer, size_t offset);
-		Coroutine<bool> Dispatch(Required<CmdBuffer*> cmdBuffer, std::array<uint32_t, 3> dispatchCount);
+		Coroutine<Result<bool>> Initialize(Required<RefPtr<Shader>> s);
+		Result<bool> BindImage(std::string_view name, Required<RefPtr<Image>> image);
+		Result<bool> BindBuffer(std::string_view name, Required<RefPtr<Buffer>> buffer, size_t offset);
+		Coroutine<Result<bool>> Dispatch(Required<CmdBuffer*> cmdBuffer, std::array<uint32_t, 3> dispatchCount);
 
 		enum class Status {
 			Invalid,

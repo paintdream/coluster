@@ -31,11 +31,11 @@ namespace coluster {
 		}
 
 		static void lua_registar(LuaState lua);
-		bool Initialize(size_t size, bool asUniformBuffer, bool cpuVisible);
+		Result<bool> Initialize(size_t size, bool asUniformBuffer, bool cpuVisible);
 		void Uninitialize();
 
-		Coroutine<bool> Upload(LuaState lua, Required<CmdBuffer*> cmdBuffer, size_t offset, std::string_view data);
-		Coroutine<std::string> Download(LuaState lua, Required<CmdBuffer*> cmdBuffer, size_t offset, size_t size);
+		Coroutine<Result<bool>> Upload(LuaState lua, Required<CmdBuffer*> cmdBuffer, size_t offset, std::string_view data);
+		Coroutine<Result<std::string>> Download(LuaState lua, Required<CmdBuffer*> cmdBuffer, size_t offset, size_t size);
 
 		VkBuffer GetBuffer() const noexcept { return buffer; }
 		size_t GetBufferSize() const noexcept { return bufferSize; }

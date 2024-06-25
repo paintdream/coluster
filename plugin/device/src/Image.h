@@ -34,10 +34,10 @@ namespace coluster {
 		}
 
 		static void lua_registar(LuaState lua);
-		bool Initialize(VkImageType type, VkFormat format, uint32_t width, uint32_t height, uint32_t depth);
+		Result<bool> Initialize(VkImageType type, VkFormat format, uint32_t width, uint32_t height, uint32_t depth);
 		void Uninitialize();
-		Coroutine<bool> Upload(LuaState lua, Required<CmdBuffer*> cmdBuffer, std::string_view data);
-		Coroutine<std::string> Download(LuaState lua, Required<CmdBuffer*> cmdBuffer);
+		Coroutine<Result<bool>> Upload(LuaState lua, Required<CmdBuffer*> cmdBuffer, std::string_view data);
+		Coroutine<Result<std::string>> Download(LuaState lua, Required<CmdBuffer*> cmdBuffer);
 
 		VkImageType GetImageType() const noexcept { return imageType; }
 		VkFormat GetImageFormat() const noexcept { return imageFormat; }

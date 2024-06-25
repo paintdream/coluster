@@ -8,8 +8,8 @@ if platform and platform:find("^Windows") then
 	package.cpath = package.cpath .. ";../build32/Debug/?.dll"
 end
 
-warn = function (message)
-	print("[Warning] " .. message)
+systrap = function (category, message)
+	print("[SYSTRAP] <" .. category .. "> " .. message)
 end
 
 local coluster = assert(require("coluster").new())

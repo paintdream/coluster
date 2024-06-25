@@ -38,10 +38,9 @@ namespace coluster {
 		}
 	}
 
-	Coroutine<bool> File::Open(std::string_view path, bool write) {
+	Coroutine<Result<bool>> File::Open(std::string_view path, bool write) {
 		if (status != Status::Invalid) {
-			fprintf(stderr, "[WARNING] File::OpenSync() -> Initializing twice takes no effects!\n");
-			co_return false;
+			co_return Result<bool>(std::nullopt, "[WARNING] File::Open() -> Open twice takes no effects!");
 		}
 
 		bool result = false;
@@ -136,8 +135,11 @@ namespace coluster {
 	}
 #endif
 
-	Coroutine<std::string_view> File::Read(size_t offset, size_t length) {
-		if (status != Status::Ready || length == 0)
+	Coroutine<Result<std::string_view>> File::Read(size_t offset, size_t length) {
+		if (status != Status::Ready)
+			co_return Result<std::string_view>(std::nullopt, "[WARNING] File::Read() -> Not ready!");
+
+		if (length == 0)
 			co_return "";
 
 		// allocate memory resource quota before allocating
@@ -250,9 +252,12 @@ namespace coluster {
 		co_return std::move(result);
 	}
 
-	Coroutine<size_t> File::Write(size_t offset, std::string_view input) {
-		if (status != Status::Ready || input.size() == 0)
-			co_return 0;
+	Coroutine<Result<size_t>> File::Write(size_t offset, std::string_view input) {
+		if (status != Status::Ready)
+			co_return Result<size_t>(std::nullopt, "[WARNING] File::Write() -> Not ready!");
+
+		if (input.size() == 0)
+			co_return 0u;
 
 		status = Status::Writing;
 		size_t result = 0;
@@ -361,11 +366,10 @@ namespace coluster {
 		co_return std::move(result);
 	}
 
-	void File::Flush() {
+	Result<bool> File::Flush() {
 		auto guard = write_fence();
 		if (status != Status::Ready) {
-			fprintf(stderr, "[WARNING] File::Flush() -> Not ready!\n");
-			return;
+			return Result<bool>(std::nullopt, "[WARNING] File::Flush() -> Not ready!");
 		}
 
 		buffer.clear();
@@ -380,13 +384,13 @@ namespace coluster {
 			fsync(fileFd);
 		}
 #endif
+		return true;
 	}
 
-	bool File::Close() {
+	Result<bool> File::Close() {
 		auto guard = write_fence();
 		if (status != Status::Ready) {
-			fprintf(stderr, "[WARNING] File::Flush() -> Not ready!\n");
-			return false;
+			return Result<bool>(std::nullopt, "[WARNING] File::Flush() -> Not ready!");
 		}
 
 #ifdef _WIN32

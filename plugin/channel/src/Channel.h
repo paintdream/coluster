@@ -14,7 +14,7 @@ namespace coluster {
 
 		static void lua_registar(LuaState lua);
 		Warp& GetWarp() noexcept { return *this; }
-		Coroutine<bool> Setup(std::string_view protocol, std::string_view address);
+		Coroutine<Result<bool>> Setup(std::string_view protocol, std::string_view address);
 		Coroutine<bool> Connect(std::string_view address);
 		Coroutine<bool> Send(std::string_view data);
 		Coroutine<std::string_view> Recv();

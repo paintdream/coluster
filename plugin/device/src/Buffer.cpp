@@ -5,11 +5,10 @@
 namespace coluster {
 	Buffer::Buffer(Device& dev) noexcept : DeviceObject(dev) {}
 	
-	bool Buffer::Initialize(size_t size, bool asUniformBuffer, bool cpuVisible) {
+	Result<bool> Buffer::Initialize(size_t size, bool asUniformBuffer, bool cpuVisible) {
 		auto guard = write_fence();
 		if (buffer != VK_NULL_HANDLE) {
-			fprintf(stderr, "[WARNING] Buffer::Initialize() -> Initializing twice takes no effects!\n");
-			return false;
+			return Result<bool>(std::nullopt, "[WARNING] Buffer::Initialize() -> Initializing twice takes no effects!");
 		}
 
 		bufferSize = size;
@@ -42,16 +41,14 @@ namespace coluster {
 		Uninitialize();
 	}
 
-	Coroutine<bool> Buffer::Upload(LuaState lua, Required<CmdBuffer*> cmdBuffer, size_t offset, std::string_view data) {
+	Coroutine<Result<bool>> Buffer::Upload(LuaState lua, Required<CmdBuffer*> cmdBuffer, size_t offset, std::string_view data) {
 		if (auto guard = write_fence()) {
 			if (buffer == VK_NULL_HANDLE) {
-				fprintf(stderr, "[ERROR] Buffer::Upload() -> Uninitialized buffer!\n");
-				co_return false;
+				co_return Result<bool>(std::nullopt, "[ERROR] Buffer::Upload() -> Uninitialized buffer!");
 			}
 
 			if (data.empty() || offset + data.size() > bufferSize) {
-				fprintf(stderr, "[ERROR] Buffer::Upload() -> Input data size error!\n");
-				co_return false;
+				co_return Result<bool>(std::nullopt, "[ERROR] Buffer::Upload() -> Input data size error!");
 			}
 
 			size_t size = data.size();
@@ -120,17 +117,15 @@ namespace coluster {
 		co_return true;
 	}
 
-	Coroutine<std::string> Buffer::Download(LuaState lua, Required<CmdBuffer*> cmdBuffer, size_t offset, size_t size) {
+	Coroutine<Result<std::string>> Buffer::Download(LuaState lua, Required<CmdBuffer*> cmdBuffer, size_t offset, size_t size) {
 		std::string data;
 		if (auto guard = write_fence()) {
 			if (buffer == VK_NULL_HANDLE) {
-				fprintf(stderr, "[ERROR] Buffer::Download() -> Uninitialized buffer!\n");
-				co_return "";
+				co_return Result<std::string>(std::nullopt, "[ERROR] Buffer::Download() -> Uninitialized buffer!");
 			}
 
 			if (offset + size > bufferSize) {
-				fprintf(stderr, "[ERROR] Buffer::Download() -> Output data size error!\n");
-				co_return "";
+				co_return Result<std::string>(std::nullopt, "[ERROR] Buffer::Download() -> Output data size error!");
 			}
 
 			VkBufferCreateInfo bufferInfo = {};

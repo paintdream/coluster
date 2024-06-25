@@ -18,9 +18,9 @@ namespace coluster {
 		Warp& GetWarp() noexcept { return *this; }
 
 		static void lua_registar(LuaState lua);
-		Coroutine<bool> Initialize(std::string_view path, bool createIfNotExist);
+		Coroutine<Result<bool>> Initialize(std::string_view path, bool createIfNotExist);
 		Coroutine<void> Uninitialize();
-		Coroutine<Ref> Execute(LuaState lua, std::string_view sqlTemplate, Ref&& postData, bool asyncPost);
+		Coroutine<Result<Ref>> Execute(LuaState lua, std::string_view sqlTemplate, Ref&& postData, bool asyncPost);
 		void lua_finalize(LuaState lua, int index);
 
 	protected:

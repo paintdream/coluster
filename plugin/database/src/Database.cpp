@@ -1,5 +1,6 @@
 #include "Database.h"
 #include "../ref/sqlite3/sqlite3.h"
+#include <sstream>
 
 namespace coluster {
 	Database::Database(AsyncWorker& asyncWorker) : Warp(asyncWorker) {}
@@ -10,11 +11,10 @@ namespace coluster {
 		lua.set_current<&Database::Execute>("Execute");
 	}
 
-	Coroutine<bool> Database::Initialize(std::string_view path, bool createIfNotExist) {
+	Coroutine<Result<bool>> Database::Initialize(std::string_view path, bool createIfNotExist) {
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		if (handle != nullptr) {
-			fprintf(stderr, "[WARNING] Database already initialized!\n");
-			co_return false;
+			co_return Result<bool>(std::nullopt, "[WARNING] Database already initialized!");
 		}
 
 		bool result = sqlite3_open_v2(path.data(), &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_NOMUTEX | (createIfNotExist ? SQLITE_OPEN_CREATE : 0), nullptr) == SQLITE_OK;
@@ -130,10 +130,9 @@ namespace coluster {
 		}
 	}
 
-	Coroutine<Ref> Database::Execute(LuaState lua, std::string_view sqlTemplate, Ref&& argPostData, bool asyncPost) {
+	Coroutine<Result<Ref>> Database::Execute(LuaState lua, std::string_view sqlTemplate, Ref&& argPostData, bool asyncPost) {
 		if (handle == nullptr) {
-			fprintf(stderr, "[ERROR] Database::Execute() -> Uninitialized database!\n");
-			co_return Ref();
+			co_return Result<Ref>(std::nullopt, "[ERROR] Database::Execute() -> Uninitialized database!");
 		}
 
 		// use raw lua operations for better performance

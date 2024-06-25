@@ -11,11 +11,10 @@ namespace coluster {
 
 	Image::Image(Device& dev) noexcept : DeviceObject(dev) {}
 
-	bool Image::Initialize(VkImageType type, VkFormat format, uint32_t w, uint32_t h, uint32_t d) {
+	Result<bool> Image::Initialize(VkImageType type, VkFormat format, uint32_t w, uint32_t h, uint32_t d) {
 		auto guard = write_fence();
 		if (image != VK_NULL_HANDLE) {
-			fprintf(stderr, "[WARNING] Image::Initialize() -> Initializing twice takes no effects!\n");
-			return false;
+			return Result<bool>(std::nullopt, "[WARNING] Image::Initialize() -> Initializing twice takes no effects!");
 		}
 
 		imageType = type;
@@ -65,7 +64,7 @@ namespace coluster {
 		if (image != VK_NULL_HANDLE && imageView != VK_NULL_HANDLE) {
 			return true;
 		} else {
-			fprintf(stderr, "[ERROR] Image::Initialize() -> Cannot create image or image view.\n");
+			// Result<bool>(std::nullopt, "[ERROR] Image::Initialize() -> Cannot create image or image view.");
 			return false;
 		}
 	}
@@ -84,11 +83,10 @@ namespace coluster {
 		}
 	}
 
-	Coroutine<bool> Image::Upload(LuaState lua, Required<CmdBuffer*> cmdBuffer, std::string_view data) {
+	Coroutine<Result<bool>> Image::Upload(LuaState lua, Required<CmdBuffer*> cmdBuffer, std::string_view data) {
 		if (auto guard = write_fence()) {
 			if (image == VK_NULL_HANDLE) {
-				fprintf(stderr, "[ERROR] Image::Upload() -> Uninitialized Image!\n");
-				co_return false;
+				co_return Result<bool>(std::nullopt, "[ERROR] Image::Upload() -> Uninitialized Image!");
 			}
 
 			size_t size = data.size();
@@ -97,8 +95,7 @@ namespace coluster {
 			vmaGetAllocationInfo(device.GetVmaAllocator(), vmaAllocation, &allocInfo);
 
 			if (size > allocInfo.size) {
-				fprintf(stderr, "[ERROR] Image::Upload() -> Invalid size!\n");
-				co_return false;
+				co_return Result<bool>(std::nullopt, "[ERROR] Image::Upload() -> Invalid size!");
 			}
 
 			// require both host memory and device memory
@@ -177,12 +174,11 @@ namespace coluster {
 		co_return true;
 	}
 
-	Coroutine<std::string> Image::Download(LuaState lua, Required<CmdBuffer*> cmdBuffer) {
+	Coroutine<Result<std::string>> Image::Download(LuaState lua, Required<CmdBuffer*> cmdBuffer) {
 		std::string data;
 		if (auto guard = write_fence()) {
 			if (image == VK_NULL_HANDLE) {
-				fprintf(stderr, "[ERROR] Image::Download() -> Uninitialized Image!\n");
-				co_return "";
+				co_return Result<std::string>(std::nullopt, "[ERROR] Image::Download() -> Uninitialized Image!");
 			}
 
 			VmaAllocationInfo allocInfo = {};
