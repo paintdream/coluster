@@ -170,7 +170,7 @@ std::string_view Coluster::GetStatus() const noexcept {
 
 Result<bool> Coluster::Start(LuaState lua, size_t threadCount) {
 	if (AsyncWorker::get_current_thread_index() != ~(size_t)0)
-		return Result<bool>(std::nullopt, "Coluster::Start() -> incorrect current thread.");
+		return ResultError("Coluster::Start() -> incorrect current thread.");
 
 	size_t count = std::thread::hardware_concurrency();
 	if (threadCount != 0) {
@@ -211,7 +211,7 @@ Result<Ref> Coluster::GetProfile(LuaState lua) {
 		LuaState::stack_guard_t guard(lua.get_state());
 		return scriptWarp->GetProfileTable().as<Ref>(lua);
 	} else {
-		return Result<Ref>(std::nullopt, "[ERROR] Cannot GetProfile while coluster is not running!");
+		return ResultError("[ERROR] Cannot GetProfile while coluster is not running!");
 	}
 }
 
@@ -225,7 +225,7 @@ Result<bool> Coluster::Post(LuaState lua, Ref&& callback) {
 		return true;
 	} else {
 		lua.deref(std::move(callback));
-		return Result<bool>(std::nullopt, "[ERROR] Cannot Post new routines while coluster is not running!");
+		return ResultError("[ERROR] Cannot Post new routines while coluster is not running!");
 	}
 }
 
@@ -568,7 +568,7 @@ static void SignalHandler(int i) {
 
 Result<bool> Coluster::Join(LuaState lua, Ref&& finalizer, bool enableConsole) {
 	if (AsyncWorker::get_current_thread_index() != mainThreadIndex) {
-		return Result<bool>(std::nullopt, "[ERROR] Coluster::Join() must be called in main thread.");
+		return ResultError("[ERROR] Coluster::Join() must be called in main thread.");
 	}
 
 	if (workerStatus.load(std::memory_order_acquire) == Status::Stopping) {

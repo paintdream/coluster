@@ -14,7 +14,7 @@ namespace coluster {
 	Result<bool> Image::Initialize(VkImageType type, VkFormat format, uint32_t w, uint32_t h, uint32_t d) {
 		auto guard = write_fence();
 		if (image != VK_NULL_HANDLE) {
-			return Result<bool>(std::nullopt, "[WARNING] Image::Initialize() -> Initializing twice takes no effects!");
+			return ResultError("[WARNING] Image::Initialize() -> Initializing twice takes no effects!");
 		}
 
 		imageType = type;
@@ -64,7 +64,7 @@ namespace coluster {
 		if (image != VK_NULL_HANDLE && imageView != VK_NULL_HANDLE) {
 			return true;
 		} else {
-			// Result<bool>(std::nullopt, "[ERROR] Image::Initialize() -> Cannot create image or image view.");
+			// ResultError("[ERROR] Image::Initialize() -> Cannot create image or image view.");
 			return false;
 		}
 	}
@@ -86,7 +86,7 @@ namespace coluster {
 	Coroutine<Result<bool>> Image::Upload(LuaState lua, Required<CmdBuffer*> cmdBuffer, std::string_view data) {
 		if (auto guard = write_fence()) {
 			if (image == VK_NULL_HANDLE) {
-				co_return Result<bool>(std::nullopt, "[ERROR] Image::Upload() -> Uninitialized Image!");
+				co_return ResultError("[ERROR] Image::Upload() -> Uninitialized Image!");
 			}
 
 			size_t size = data.size();
@@ -95,7 +95,7 @@ namespace coluster {
 			vmaGetAllocationInfo(device.GetVmaAllocator(), vmaAllocation, &allocInfo);
 
 			if (size > allocInfo.size) {
-				co_return Result<bool>(std::nullopt, "[ERROR] Image::Upload() -> Invalid size!");
+				co_return ResultError("[ERROR] Image::Upload() -> Invalid size!");
 			}
 
 			// require both host memory and device memory
@@ -178,7 +178,7 @@ namespace coluster {
 		std::string data;
 		if (auto guard = write_fence()) {
 			if (image == VK_NULL_HANDLE) {
-				co_return Result<std::string>(std::nullopt, "[ERROR] Image::Download() -> Uninitialized Image!");
+				co_return ResultError("[ERROR] Image::Download() -> Uninitialized Image!");
 			}
 
 			VmaAllocationInfo allocInfo = {};

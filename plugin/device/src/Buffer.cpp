@@ -8,7 +8,7 @@ namespace coluster {
 	Result<bool> Buffer::Initialize(size_t size, bool asUniformBuffer, bool cpuVisible) {
 		auto guard = write_fence();
 		if (buffer != VK_NULL_HANDLE) {
-			return Result<bool>(std::nullopt, "[WARNING] Buffer::Initialize() -> Initializing twice takes no effects!");
+			return ResultError("[WARNING] Buffer::Initialize() -> Initializing twice takes no effects!");
 		}
 
 		bufferSize = size;
@@ -44,11 +44,11 @@ namespace coluster {
 	Coroutine<Result<bool>> Buffer::Upload(LuaState lua, Required<CmdBuffer*> cmdBuffer, size_t offset, std::string_view data) {
 		if (auto guard = write_fence()) {
 			if (buffer == VK_NULL_HANDLE) {
-				co_return Result<bool>(std::nullopt, "[ERROR] Buffer::Upload() -> Uninitialized buffer!");
+				co_return ResultError("[ERROR] Buffer::Upload() -> Uninitialized buffer!");
 			}
 
 			if (data.empty() || offset + data.size() > bufferSize) {
-				co_return Result<bool>(std::nullopt, "[ERROR] Buffer::Upload() -> Input data size error!");
+				co_return ResultError("[ERROR] Buffer::Upload() -> Input data size error!");
 			}
 
 			size_t size = data.size();
@@ -121,11 +121,11 @@ namespace coluster {
 		std::string data;
 		if (auto guard = write_fence()) {
 			if (buffer == VK_NULL_HANDLE) {
-				co_return Result<std::string>(std::nullopt, "[ERROR] Buffer::Download() -> Uninitialized buffer!");
+				co_return ResultError("[ERROR] Buffer::Download() -> Uninitialized buffer!");
 			}
 
 			if (offset + size > bufferSize) {
-				co_return Result<std::string>(std::nullopt, "[ERROR] Buffer::Download() -> Output data size error!");
+				co_return ResultError("[ERROR] Buffer::Download() -> Output data size error!");
 			}
 
 			VkBufferCreateInfo bufferInfo = {};

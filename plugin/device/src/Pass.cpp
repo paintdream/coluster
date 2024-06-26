@@ -14,23 +14,23 @@ namespace coluster {
 	Coroutine<Result<bool>> Pass::Dispatch(Required<CmdBuffer*> cmdBuffer, std::array<uint32_t, 3> dispatchCount) {
 		// Check object status
 		if (!shader) {
-			co_return Result<bool>(std::nullopt, "[ERROR] Pass::Dispatch() -> Invalid shader!");
+			co_return ResultError("[ERROR] Pass::Dispatch() -> Invalid shader!");
 		}
 
 		if (descriptorSet == VK_NULL_HANDLE) {
-			co_return Result<bool>(std::nullopt, "[ERROR] Pass::Dispatch() -> Invalid descriptor set!");
+			co_return ResultError("[ERROR] Pass::Dispatch() -> Invalid descriptor set!");
 		}
 
 		VkPipeline pipeline = shader->GetPipeline();
 		VkPipelineLayout pipelineLayout = shader->GetPipelineLayout();
 
 		if (pipeline == VK_NULL_HANDLE || pipelineLayout == VK_NULL_HANDLE) {
-			co_return Result<bool>(std::nullopt, "[ERROR] Pass::Dispatch() -> Uninitialized shader pipeline!");
+			co_return ResultError("[ERROR] Pass::Dispatch() -> Uninitialized shader pipeline!");
 		}
 
 		VkCommandBuffer commandBuffer = cmdBuffer.get()->GetCommandBuffer();
 		if (commandBuffer == VK_NULL_HANDLE) {
-			co_return Result<bool>(std::nullopt, "[ERROR] Pass::Dispatch() -> Uninitialized command buffer!");
+			co_return ResultError("[ERROR] Pass::Dispatch() -> Uninitialized command buffer!");
 		}
 
 		// Schedule to command buffer
@@ -113,18 +113,18 @@ namespace coluster {
 
 	Result<bool> Pass::BindImage(std::string_view name, Required<RefPtr<Image>> img) {
 		if (!shader || status != Status::Preparing || descriptorSet == VK_NULL_HANDLE) {
-			return Result<bool>(std::nullopt, "[ERROR] Pass::BindImage() -> Uninitialized Pass!");
+			return ResultError("[ERROR] Pass::BindImage() -> Uninitialized Pass!");
 		}
 
 		auto image = img.get().get();
 		if (image->GetImageLayout() != VK_IMAGE_LAYOUT_GENERAL) {
-			return Result<bool>(std::nullopt, "[ERROR] Pass::BindImage() -> Image is uninitialized!");
+			return ResultError("[ERROR] Pass::BindImage() -> Image is uninitialized!");
 		}
 
 		// query binding
 		uint32_t bindingPoint = shader->GetImageBindingPoint(name);
 		if (bindingPoint == ~(uint32_t)0) {
-			return Result<bool>(std::nullopt, "[ERROR] Pass::BindImage() -> Invalid binding point with given name " + std::string(name) + "!");
+			return ResultError("[ERROR] Pass::BindImage() -> Invalid binding point with given name " + std::string(name) + "!");
 		}
 
 		VkDescriptorImageInfo info = {};
@@ -147,13 +147,13 @@ namespace coluster {
 
 	Result<bool> Pass::BindBuffer(std::string_view name, Required<RefPtr<Buffer>> buf, size_t offset) {
 		if (!shader || status != Status::Preparing || descriptorSet == VK_NULL_HANDLE) {
-			return Result<bool>(std::nullopt, "[ERROR] Pass::BindBuffer() -> Uninitialized Pass!");
+			return ResultError("[ERROR] Pass::BindBuffer() -> Uninitialized Pass!");
 		}
 
 		// query binding
 		uint32_t bindingPoint = shader->GetBufferBindingPoint(name);
 		if (bindingPoint == ~(uint32_t)0) {
-			return Result<bool>(std::nullopt, "[ERROR] Pass::BindBuffer() -> Invalid binding point with given name " + std::string(name) + "!");
+			return ResultError("[ERROR] Pass::BindBuffer() -> Invalid binding point with given name " + std::string(name) + "!");
 		}
 
 		auto* buffer = buf.get().get();
@@ -178,11 +178,11 @@ namespace coluster {
 
 	Coroutine<Result<bool>> Pass::Initialize(Required<RefPtr<Shader>> s) {
 		if (descriptorSet != VK_NULL_HANDLE) {
-			co_return Result<bool>(std::nullopt, "[WARNING] Pass::Intialize() -> Initializing twice takes no effects!");
+			co_return ResultError("[WARNING] Pass::Intialize() -> Initializing twice takes no effects!");
 		}
 
 		if (status != Status::Invalid) {
-			co_return Result<bool>(std::nullopt, "[WARNING] Pass::Initialize() -> Pass status error!");
+			co_return ResultError("[WARNING] Pass::Initialize() -> Pass status error!");
 		}
 	
 		assert(descriptorSet == VK_NULL_HANDLE);

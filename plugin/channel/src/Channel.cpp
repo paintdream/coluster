@@ -101,7 +101,7 @@ namespace coluster {
 		} else if (protocol == "REP") {
 			protoindex = NN_REP;
 		} else {
-			co_return Result<bool>(std::nullopt, "[ERROR] Channel::Setup() -> Unknown protocol.");
+			co_return ResultError("[ERROR] Channel::Setup() -> Unknown protocol.");
 		}
 
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());

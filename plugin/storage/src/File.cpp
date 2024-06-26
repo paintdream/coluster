@@ -40,7 +40,7 @@ namespace coluster {
 
 	Coroutine<Result<bool>> File::Open(std::string_view path, bool write) {
 		if (status != Status::Invalid) {
-			co_return Result<bool>(std::nullopt, "[WARNING] File::Open() -> Open twice takes no effects!");
+			co_return ResultError("[WARNING] File::Open() -> Open twice takes no effects!");
 		}
 
 		bool result = false;
@@ -137,7 +137,7 @@ namespace coluster {
 
 	Coroutine<Result<std::string_view>> File::Read(size_t offset, size_t length) {
 		if (status != Status::Ready)
-			co_return Result<std::string_view>(std::nullopt, "[WARNING] File::Read() -> Not ready!");
+			co_return ResultError("[WARNING] File::Read() -> Not ready!");
 
 		if (length == 0)
 			co_return "";
@@ -254,7 +254,7 @@ namespace coluster {
 
 	Coroutine<Result<size_t>> File::Write(size_t offset, std::string_view input) {
 		if (status != Status::Ready)
-			co_return Result<size_t>(std::nullopt, "[WARNING] File::Write() -> Not ready!");
+			co_return ResultError("[WARNING] File::Write() -> Not ready!");
 
 		if (input.size() == 0)
 			co_return 0u;
@@ -369,7 +369,7 @@ namespace coluster {
 	Result<bool> File::Flush() {
 		auto guard = write_fence();
 		if (status != Status::Ready) {
-			return Result<bool>(std::nullopt, "[WARNING] File::Flush() -> Not ready!");
+			return ResultError("[WARNING] File::Flush() -> Not ready!");
 		}
 
 		buffer.clear();
@@ -390,7 +390,7 @@ namespace coluster {
 	Result<bool> File::Close() {
 		auto guard = write_fence();
 		if (status != Status::Ready) {
-			return Result<bool>(std::nullopt, "[WARNING] File::Flush() -> Not ready!");
+			return ResultError("[WARNING] File::Flush() -> Not ready!");
 		}
 
 #ifdef _WIN32

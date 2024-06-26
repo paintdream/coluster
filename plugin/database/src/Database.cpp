@@ -14,7 +14,7 @@ namespace coluster {
 	Coroutine<Result<bool>> Database::Initialize(std::string_view path, bool createIfNotExist) {
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		if (handle != nullptr) {
-			co_return Result<bool>(std::nullopt, "[WARNING] Database already initialized!");
+			co_return ResultError("[WARNING] Database already initialized!");
 		}
 
 		bool result = sqlite3_open_v2(path.data(), &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_NOMUTEX | (createIfNotExist ? SQLITE_OPEN_CREATE : 0), nullptr) == SQLITE_OK;
@@ -132,7 +132,7 @@ namespace coluster {
 
 	Coroutine<Result<Ref>> Database::Execute(LuaState lua, std::string_view sqlTemplate, Ref&& argPostData, bool asyncPost) {
 		if (handle == nullptr) {
-			co_return Result<Ref>(std::nullopt, "[ERROR] Database::Execute() -> Uninitialized database!");
+			co_return ResultError("[ERROR] Database::Execute() -> Uninitialized database!");
 		}
 
 		// use raw lua operations for better performance

@@ -8,7 +8,7 @@ if platform and platform:find("^Windows") then
 	package.cpath = package.cpath .. ";../build32/Debug/?.dll"
 end
 
-systrap = function (category, message)
+__iris_systrap__ = function (category, message)
 	print("[SYSTRAP] <" .. category .. "> " .. message)
 end
 

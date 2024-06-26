@@ -24,12 +24,12 @@ namespace coluster {
 		auto guard = write_fence();
 
 		if (content.size() != res.first * res.second * 4) {
-			return Result<bool>(std::nullopt, "[ERROR] Texture::SetPixels() -> Content size expected " + std::to_string(iris::iris_verify_cast<int>(res.first * res.second * 4)) + ", got " + std::to_string(iris::iris_verify_cast<int>(content.size())) + "");
+			return ResultError("[ERROR] Texture::SetPixels() -> Content size expected " + std::to_string(iris::iris_verify_cast<int>(res.first * res.second * 4)) + ", got " + std::to_string(iris::iris_verify_cast<int>(content.size())) + "");
 			return false;
 		}
 
 		if (status != Status::Invalid && status != Status::Ready) {
-			return Result<bool>(std::nullopt, "[ERROR] Texture::SetPixels() -> Invalid status!");
+			return ResultError("[ERROR] Texture::SetPixels() -> Invalid status!");
 		}
 
 		resolution = res;
@@ -44,12 +44,12 @@ namespace coluster {
 
 		if (auto guard = write_fence()) {
 			if (status != Status::Invalid) {
-				co_return Result<bool>(std::nullopt, "[ERROR] Texture::Load() -> Invalid status!");
+				co_return ResultError("[ERROR] Texture::Load() -> Invalid status!");
 			}
 
 			auto size = file.get()->GetSize();
 			if (size == 0 || size >= std::numeric_limits<size_t>::max()) {
-				co_return Result<bool>(std::nullopt, "[ERROR] Texture::Load() -> Invalid size!");
+				co_return ResultError("[ERROR] Texture::Load() -> Invalid size!");
 			}
 
 			status = Status::Reading;
@@ -80,7 +80,7 @@ namespace coluster {
 		bool ret = false;
 		if (auto guard = write_fence()) {
 			if (status != Status::Ready) {
-				co_return Result<bool>(std::nullopt, "[ERROR] Texture::Save() -> Invalid status!");
+				co_return ResultError("[ERROR] Texture::Save() -> Invalid status!");
 			}
 			
 			status = Status::Writing;
@@ -132,7 +132,7 @@ namespace coluster {
 			status = Status::Ready;
 
 			if (!downloadResult) {
-				co_return Result<bool>(std::nullopt, std::move(downloadResult.message));
+				co_return ResultError(std::move(downloadResult.message));
 			}
 
 			buffer = std::move(downloadResult.value());

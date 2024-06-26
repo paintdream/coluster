@@ -75,6 +75,7 @@ namespace coluster {
 	using Required = LuaState::required_t<element_t>;
 	template <typename value_t>
 	using Result = iris::iris_lua_t::optional_result_t<value_t>;
+	using ResultError = iris::iris_lua_t::result_error_t;
 
 	template <typename element_t, typename prim_type = typename element_t::first_type, typename index_type_t = size_t, index_type_t prim_size = prim_type::size * 2>
 	using TreeOverlap = iris::iris_overlap_t<element_t, prim_type, index_type_t, prim_size>;
