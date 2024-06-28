@@ -7,7 +7,16 @@ namespace iris {
 	struct iris_lua_convert_t<coluster::PyBridge::StackIndex> {
 		static constexpr bool value = true;
 		static coluster::PyBridge::StackIndex from_lua(lua_State* L, int index) {
-			return coluster::PyBridge::StackIndex { index };
+			return coluster::PyBridge::StackIndex { L, index };
+		}
+
+		static int to_lua(lua_State* L, coluster::PyBridge::StackIndex&& stackIndex) {
+			if (stackIndex.index != 0) {
+				lua_xmove(stackIndex.dataStack, L, stackIndex.index);
+				assert(lua_gettop(stackIndex.dataStack) == 0);
+			}
+
+			return stackIndex.index;
 		}
 	};
 }
@@ -161,9 +170,9 @@ namespace coluster {
 		}
 	}
 
-	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Call(LuaState lua, Required<Object*> callable, StackIndex parameters) {
+	Coroutine<PyBridge::StackIndex> PyBridge::Call(LuaState lua, Required<Object*> callable, StackIndex parameters) {
 		if (status != Status::Ready) {
-			co_return RefPtr<Object>();
+			co_return StackIndex { nullptr, 0 };
 		}
 
 		status = Status::Pending;
@@ -179,6 +188,7 @@ namespace coluster {
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 
 		PyObject* object = nullptr;
+		std::string message;
 		do {
 			PyGILGuard guard;
 			// make parameter tuple
@@ -187,20 +197,74 @@ namespace coluster {
 				PyTuple_SET_ITEM(tuple, i, PackObject(dataExchange, i + 1));
 			}
 
+			lua_settop(D, 0);
 			object = PyObject_CallObject(callable.get()->GetPyObject(), tuple);
 			Py_DECREF(tuple);
+
+			if (PyErr_Occurred() != nullptr) {
+				PyObject* ptype = nullptr;
+				PyObject* pvalue = nullptr;
+				PyObject* ptraceback = nullptr;
+				PyErr_Fetch(&ptype, &pvalue, &ptraceback);
+				PyErr_NormalizeException(&ptype, &pvalue, &ptraceback);
+
+				if (ptype != nullptr) {
+					Py_DECREF(ptype);
+				}
+
+				if (pvalue != nullptr) {
+					PyObject* pstr = PyObject_Str(pvalue);
+					if (pstr) {
+						Py_ssize_t size = 0;
+#if PY_MAJOR_VERSION < 3
+						const char* s = nullptr;
+						PyString_AsStringAndSize(pstr, &s, &size);
+#else
+						const char* s = PyUnicode_AsUTF8AndSize(pstr, &size);
+#endif
+						if (s != nullptr) {
+							message = std::string(s, size);
+						}
+
+						Py_DECREF(pstr);
+					}
+
+					Py_DECREF(pvalue);
+				}
+
+				if (ptraceback != nullptr) {
+					Py_DECREF(ptraceback);
+				}
+
+				PyErr_Clear();
+			}
 		} while (false);
 
+		co_await Warp::Switch(std::source_location::current(), currentWarp, &GetWarp());
+		if (status != Status::Invalid) {
+			if (object == nullptr) {
+				dataExchange.native_push_variable(false);
+				dataExchange.native_push_variable(message.empty() ? "Unknown Python Error!" : message);
+			} else {
+				PyGILGuard guard;
+				dataExchange.native_push_variable(true);
+				if (!UnpackObject(dataExchange, object)) {
+					dataExchange.native_pop_variable(1);
+					dataExchange.native_push_variable(lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, object));
+				}
+			}
+		} else if (object != nullptr) {
+			QueueDeleteObject(object);
+		}
+
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
-		lua_settop(D, 0);
+		lua.deref(std::move(s));
 
 		if (status != Status::Invalid) {
 			status = Status::Ready;
-			co_return lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, object);
+			co_return StackIndex { dataExchange, 2 };
 		} else {
-			lua.deref(std::move(s));
-			QueueDeleteObject(object);
-			co_return RefPtr<Object>();
+			co_return StackIndex { nullptr, 0 };
 		}
 	}
 
@@ -368,7 +432,7 @@ namespace coluster {
 		}
 	}
 
-	void PyBridge::UnpackObject(LuaState lua, PyObject* object) {
+	bool PyBridge::UnpackObject(LuaState lua, PyObject* object) {
 		lua_State* L = lua.get_state();
 		LuaState::stack_guard_t guard(L, 1);
 		PyTypeObject* type = object->ob_type;
@@ -428,8 +492,11 @@ namespace coluster {
 				}
 			} else {
 				lua.native_push_variable(nullptr);
+				return false;
 			}
 		}
+
+		return true;
 	}
 }
 

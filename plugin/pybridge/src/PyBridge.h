@@ -49,11 +49,12 @@ namespace coluster {
 		};
 
 		struct StackIndex {
+			lua_State* dataStack = nullptr;
 			int index = 0;
 		};
 
 		Coroutine<RefPtr<Object>> Get(LuaState lua, std::string_view name);
-		Coroutine<RefPtr<Object>> Call(LuaState lua, Required<Object*> callable, StackIndex parameters);
+		Coroutine<StackIndex> Call(LuaState lua, Required<Object*> callable, StackIndex parameters);
 		Coroutine<RefPtr<Object>> Import(LuaState lua, std::string_view name);
 		Coroutine<RefPtr<Object>> Pack(LuaState lua, Ref&& ref);
 		Coroutine<Ref> Unpack(LuaState lua, RefPtr<Object>&& object);
@@ -64,7 +65,7 @@ namespace coluster {
 	protected:
 		void QueueDeleteObject(PyObject* object);
 		PyObject* PackObject(LuaState lua, int index);
-		void UnpackObject(LuaState lua, PyObject* object);
+		bool UnpackObject(LuaState lua, PyObject* object);
 		Ref FetchObjectType(LuaState lua, Warp* warp, Ref&& self);
 
 	protected:

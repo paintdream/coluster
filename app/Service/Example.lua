@@ -10,14 +10,26 @@ local function Main(coluster, services)
 	local pybridge = services.PyBridge
 	if pybridge.object then
 		local pyPrint = pybridge.object:Get("print")
-		pybridge.object:Call(pyPrint, pybridge.object:Pack("hello, pybridge!"), 716)
+		local success, message = pybridge.object:Call(pyPrint, "hello, pybridge!", 716)
+		--local pyEval = pybridge.object:Get("eval")
+		--local success, message = pybridge.object:Call(pyEval, "print(hello, pybridge!)")
+
+		if success then
+			print("PyCall: " .. tostring(message))
+		else
+			print("PyCall error: " .. tostring(message))
+		end
 	end
 
 	local remotePrint = luabridge.object:Get("print")
 	luabridge.object:Call(remotePrint, "hello luabridge! ", 716)
 	local remoteAdd = luabridge.object:Load("local a, b = ...\nreturn a + b, a - b")
-	local resultAdd, resultSub = luabridge.object:Call(remoteAdd, 1, 2)
-	print("Remote Add/Sub: " .. tostring(resultAdd) .. " | " .. tostring(resultSub))
+	local success, resultAdd, resultSub = luabridge.object:Call(remoteAdd, 1, 2)
+	if success then
+		print("Remote Add/Sub: " .. tostring(resultAdd) .. " | " .. tostring(resultSub))
+	else
+		print("Call script error: " .. tostring(resultAdd))
+	end
 
 	-- declare type creators
 	local CmdBuffer = device.types.CmdBuffer

@@ -130,21 +130,36 @@ namespace coluster {
 
 		// make async call
 		co_await Warp::Switch(std::source_location::current(), &GetWarp());
-		int ret = target.native_call(callable.get()->GetRef(), count).value_or(0);
+		auto ret = target.native_call(callable.get()->GetRef(), count);
 
-		if (ret != 0) {
-			// copy return values
-			co_await Warp::Switch(std::source_location::current(), currentWarp, &GetWarp());
-			for (int i = ret; i > 0; i--) {
-				target.native_cross_transfer_variable<true>(dataExchange, -i);
+		if (ret) {
+			if (ret.value() != 0) {
+				// copy return values
+				co_await Warp::Switch(std::source_location::current(), currentWarp, &GetWarp());
+				dataExchange.native_push_variable(true);
+
+				for (int i = ret.value(); i > 0; i--) {
+					target.native_cross_transfer_variable<true>(dataExchange, -i);
+				}
 			}
+
+			co_await Warp::Switch(std::source_location::current(), currentWarp);
+
+			if (ret.value() == 0) {
+				dataExchange.native_push_variable(true);
+			}
+		} else {
+			co_await Warp::Switch(std::source_location::current(), currentWarp);
+
+			dataExchange.native_push_variable(false);
+			dataExchange.native_push_variable(std::move(ret.message));
 		}
 
 		lua_settop(T, 0);
-		co_await Warp::Switch(std::source_location::current(), currentWarp);
+
 		if (status != Status::Invalid) {
 			status = Status::Ready;
-			co_return StackIndex { dataExchange, ret };
+			co_return StackIndex { dataExchange, ret ? ret.value() + 1 : 2 };
 		} else {
 			co_return StackIndex { nullptr, 0 };
 		}
