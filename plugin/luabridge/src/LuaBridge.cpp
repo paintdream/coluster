@@ -1,24 +1,5 @@
 #include "LuaBridge.h"
 
-namespace iris {
-	template <>
-	struct iris_lua_convert_t<coluster::LuaBridge::StackIndex> {
-		static constexpr bool value = true;
-		static coluster::LuaBridge::StackIndex from_lua(lua_State* L, int index) {
-			return coluster::LuaBridge::StackIndex { L, index };
-		}
-
-		static int to_lua(lua_State* L, coluster::LuaBridge::StackIndex&& stackIndex) {
-			if (stackIndex.index != 0) {
-				lua_xmove(stackIndex.dataStack, L, stackIndex.index);
-				assert(lua_gettop(stackIndex.dataStack) == 0);
-			}
-
-			return stackIndex.index;
-		}
-	};
-}
-
 namespace coluster {
 	LuaBridge::LuaBridge(AsyncWorker& asyncWorker) : Warp(asyncWorker) {
 		state = luaL_newstate();
@@ -103,7 +84,7 @@ namespace coluster {
 		}
 	}
 
-	Coroutine<LuaBridge::StackIndex> LuaBridge::Call(LuaState lua, Required<Object*> callable, StackIndex parameters) {
+	Coroutine<StackIndex> LuaBridge::Call(LuaState lua, Required<Object*> callable, StackIndex parameters) {
 		if (status != Status::Ready) {
 			co_return StackIndex { nullptr, 0 };
 		}

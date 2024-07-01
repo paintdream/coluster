@@ -21,7 +21,14 @@ namespace coluster {
 		Coroutine<Result<bool>> Initialize(std::string_view path, bool createIfNotExist);
 		Coroutine<void> Uninitialize();
 		Coroutine<Result<Ref>> Execute(LuaState lua, std::string_view sqlTemplate, Ref&& postData, bool asyncPost);
+		void lua_initialize(LuaState lua, int index);
 		void lua_finalize(LuaState lua, int index);
+		
+		enum class Status : uint8_t {
+			Invalid,
+			Ready,
+			Pending
+		};
 
 	protected:
 		int WriteResult(LuaState lua, int stackIndex, int startIndex, sqlite3_stmt* stmt);
@@ -29,7 +36,10 @@ namespace coluster {
 		void Close();
 
 	protected:
+		Ref dataExchangeRef;
+		lua_State* dataExchangeStack = nullptr;
 		sqlite3* handle = nullptr;
+		Status status = Status::Invalid;
 	};
 }
 

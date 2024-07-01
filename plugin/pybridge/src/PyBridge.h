@@ -48,11 +48,6 @@ namespace coluster {
 			PyObject* object;
 		};
 
-		struct StackIndex {
-			lua_State* dataStack = nullptr;
-			int index = 0;
-		};
-
 		Coroutine<RefPtr<Object>> Get(LuaState lua, std::string_view name);
 		Coroutine<StackIndex> Call(LuaState lua, Required<Object*> callable, StackIndex parameters);
 		Coroutine<RefPtr<Object>> Import(LuaState lua, std::string_view name);

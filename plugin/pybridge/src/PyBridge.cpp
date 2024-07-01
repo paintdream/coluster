@@ -2,25 +2,6 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-namespace iris {
-	template <>
-	struct iris_lua_convert_t<coluster::PyBridge::StackIndex> {
-		static constexpr bool value = true;
-		static coluster::PyBridge::StackIndex from_lua(lua_State* L, int index) {
-			return coluster::PyBridge::StackIndex { L, index };
-		}
-
-		static int to_lua(lua_State* L, coluster::PyBridge::StackIndex&& stackIndex) {
-			if (stackIndex.index != 0) {
-				lua_xmove(stackIndex.dataStack, L, stackIndex.index);
-				assert(lua_gettop(stackIndex.dataStack) == 0);
-			}
-
-			return stackIndex.index;
-		}
-	};
-}
-
 namespace coluster {
 	struct PyGILGuard {
 		PyGILGuard() {
@@ -170,7 +151,7 @@ namespace coluster {
 		}
 	}
 
-	Coroutine<PyBridge::StackIndex> PyBridge::Call(LuaState lua, Required<Object*> callable, StackIndex parameters) {
+	Coroutine<StackIndex> PyBridge::Call(LuaState lua, Required<Object*> callable, StackIndex parameters) {
 		if (status != Status::Ready) {
 			co_return StackIndex { nullptr, 0 };
 		}

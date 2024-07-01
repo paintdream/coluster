@@ -290,6 +290,11 @@ namespace coluster {
 		COLUSTER_API virtual ~Object() noexcept;
 		COLUSTER_API virtual Warp* GetObjectWarp() const noexcept;
 	};
+
+	struct StackIndex {
+		lua_State* dataStack = nullptr;
+		int index = 0;
+	};
 }
 
 namespace iris {
@@ -307,6 +312,23 @@ namespace iris {
 		static int to_lua(lua_State* L, coluster::AutoAsyncWorker) {
 			lua_pushnil(L);
 			return 1;
+		}
+	};
+	
+	template <>
+	struct iris_lua_convert_t<coluster::StackIndex> {
+		static constexpr bool value = true;
+		static coluster::StackIndex from_lua(lua_State* L, int index) {
+			return coluster::StackIndex { L, index };
+		}
+
+		static int to_lua(lua_State* L, coluster::StackIndex&& stackIndex) {
+			if (stackIndex.index != 0) {
+				lua_xmove(stackIndex.dataStack, L, stackIndex.index);
+				assert(lua_gettop(stackIndex.dataStack) == 0);
+			}
+
+			return stackIndex.index;
 		}
 	};
 }
