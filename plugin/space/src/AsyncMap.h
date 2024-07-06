@@ -10,7 +10,7 @@ namespace coluster {
 	struct AsyncMap {
 		using MapType = MapTemplate<K, V>;
 		explicit AsyncMap(AsyncWorker& worker) : asyncWorker(worker) {
-			//maps = std::vector<MapType>(asyncWorker.GetSharedWarps().size());
+			maps = std::vector<MapType>(asyncWorker.GetSharedWarps().size());
 		}
 
 		struct AwaitableGet : protected Warp::SwitchWarp {
