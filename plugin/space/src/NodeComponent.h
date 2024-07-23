@@ -34,7 +34,7 @@ namespace coluster {
 		NodeComponent() noexcept;
 		NodeComponent(Entity e, Ref&& r) noexcept;
 		~NodeComponent() noexcept;
-		NodeComponent(NodeComponent&& rhs) noexcept : Base(std::move(rhs)), ref(std::move(rhs.ref)) {}
+		NodeComponent(NodeComponent&& rhs) noexcept : Base(std::move(static_cast<Base&&>(rhs))), ref(std::move(rhs.ref)) {}
 
 		NodeComponent& operator = (NodeComponent&& rhs) noexcept {
 			Base::operator = (std::move(rhs));

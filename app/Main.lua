@@ -5,11 +5,11 @@ end
 -- for debugging from Visual Studio
 local platform = os.getenv('OS')
 if platform and platform:find("^Windows") then
-	package.cpath = package.cpath .. ";../build32/Debug/?.dll"
+	package.cpath = package.cpath .. ";../build/Debug/?.dll"
 end
 
 __iris_systrap__ = function (category, message)
-	print("[SYSTRAP] <" .. category .. "> " .. message)
+	-- print("[SYSTRAP] <" .. category .. "> " .. message)
 end
 
 local coluster = assert(require("coluster").new())

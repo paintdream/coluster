@@ -23,12 +23,16 @@ local function Main(coluster, services)
 
 	local remotePrint = luabridge.object:Get("print")
 	luabridge.object:Call(remotePrint, "hello luabridge! ", 716)
-	local remoteAdd = luabridge.object:Load("local a, b = ...\nreturn a + b, a - b")
-	local success, resultAdd, resultSub = luabridge.object:Call(remoteAdd, 1, 2)
-	if success then
+	local success, message = pcall(function ()
+		local remoteAdd = luabridge.object:Load("local a, b = ...\nreturn a + b, a - b")
+		local resultAdd, resultSub = luabridge.object:Call(remoteAdd, 1, 2)
 		print("Remote Add/Sub: " .. tostring(resultAdd) .. " | " .. tostring(resultSub))
+	end)
+
+	if success then
+		print("LuaCall: " .. tostring(message))
 	else
-		print("Call script error: " .. tostring(resultAdd))
+		print("LuaCall error: " .. tostring(message))
 	end
 
 	-- declare type creators

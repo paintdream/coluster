@@ -148,7 +148,7 @@ namespace coluster {
 				LuaState::stack_guard_t guard(L);
 				LuaState lua(L);
 
-				Ref trace = std::move(*scriptWarp->GetProfileTable().get(lua, "trace"));
+				Ref trace = scriptWarp->GetProfileTable().get(lua, "trace").value();
 				lua_rawgeti(L, LUA_REGISTRYINDEX, trace.get_ref_value());
 				lua_pushlightuserdata(L, address);
 				lua_rawget(L, LUA_REGISTRYINDEX); // get thread
@@ -209,7 +209,7 @@ namespace coluster {
 		UUID uuid{};
 		static_assert(sizeof(Guid) == sizeof(UUID), "Uuid size mismatch!");
 		if (::UuidCreate(&uuid) == RPC_S_OK) {
-			memcpy(&guid, &uuid, sizeof(uuid));
+			std::memcpy(&guid, &uuid, sizeof(uuid));
 		}
 
 		return guid;

@@ -34,9 +34,9 @@ namespace coluster {
 			Ref ref;
 		};
 
-		Coroutine<RefPtr<Object>> Get(LuaState lua, std::string_view name);
-		Coroutine<RefPtr<Object>> Load(LuaState lua, std::string_view code);
-		Coroutine<StackIndex> Call(LuaState lua, Required<Object*> callable, StackIndex stackIndex);
+		Coroutine<Result<RefPtr<Object>>> Get(LuaState lua, std::string_view name);
+		Coroutine<Result<RefPtr<Object>>> Load(LuaState lua, std::string_view code);
+		Coroutine<Result<StackIndex>> Call(LuaState lua, Required<Object*> callable, StackIndex stackIndex);
 		void lua_initialize(LuaState lua, int index);
 		void lua_finalize(LuaState lua, int index);
 		static void lua_registar(LuaState lua);
