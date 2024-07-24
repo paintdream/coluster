@@ -87,9 +87,9 @@ namespace coluster {
 		lua.set_current<&PyBridge::Get>("Get");
 	}
 
-	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Get(LuaState lua, std::string_view name) {
+	Coroutine<Result<RefPtr<PyBridge::Object>>> PyBridge::Get(LuaState lua, std::string_view name) {
 		if (status != Status::Ready) {
-			co_return RefPtr<Object>();
+			co_return ResultError("PyBridge not ready");
 		}
 
 		status = Status::Pending;
@@ -122,38 +122,92 @@ namespace coluster {
 		} else {
 			lua.deref(std::move(s));
 			QueueDeleteObject(object);
-			co_return RefPtr<Object>();
+			co_return ResultError("PyBridge not ready");
 		}
 	}
 
-	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Import(LuaState lua, std::string_view name) {
+	static std::string ClearError() {
+		std::string message;
+
+		if (PyErr_Occurred() != nullptr) {
+			PyObject* ptype = nullptr;
+			PyObject* pvalue = nullptr;
+			PyObject* ptraceback = nullptr;
+			PyErr_Fetch(&ptype, &pvalue, &ptraceback);
+			PyErr_NormalizeException(&ptype, &pvalue, &ptraceback);
+
+			if (ptype != nullptr) {
+				Py_DECREF(ptype);
+			}
+
+			if (pvalue != nullptr) {
+				PyObject* pstr = PyObject_Str(pvalue);
+				if (pstr) {
+					Py_ssize_t size = 0;
+#if PY_MAJOR_VERSION < 3
+					const char* s = nullptr;
+					PyString_AsStringAndSize(pstr, &s, &size);
+#else
+					const char* s = PyUnicode_AsUTF8AndSize(pstr, &size);
+#endif
+					if (s != nullptr) {
+						message = std::string(s, size);
+					}
+
+					Py_DECREF(pstr);
+				}
+
+				Py_DECREF(pvalue);
+			}
+
+			if (ptraceback != nullptr) {
+				Py_DECREF(ptraceback);
+			}
+
+			PyErr_Clear();
+		}
+
+		return message;
+	}
+
+	Coroutine<Result<RefPtr<PyBridge::Object>>> PyBridge::Import(LuaState lua, std::string_view name) {
 		if (status != Status::Ready) {
-			co_return RefPtr<Object>();
+			co_return ResultError("PyBridge not ready");
 		}
 
 		status = Status::Pending;
 		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		PyObject* object = nullptr;
+		std::string message;
 		do {
 			PyGILGuard guard;
 			object = PyImport_AddModule(name.data());
+
+			if (object == nullptr) {
+				message = ClearError();
+			}
 		} while (false);
 
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
 		if (status != Status::Invalid) {
 			status = Status::Ready;
-			co_return lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, object);
+
+			if (object != nullptr) {
+				co_return lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, object);
+			} else {
+				co_return ResultError("PyBridge::Import() -> " + message);
+			}
 		} else {
 			lua.deref(std::move(s));
 			QueueDeleteObject(object);
-			co_return RefPtr<Object>();
+			co_return ResultError("PyBridge not ready");
 		}
 	}
 
-	Coroutine<StackIndex> PyBridge::Call(LuaState lua, Required<Object*> callable, StackIndex parameters) {
+	Coroutine<Result<StackIndex>> PyBridge::Call(LuaState lua, Required<Object*> callable, StackIndex parameters) {
 		if (status != Status::Ready) {
-			co_return StackIndex { nullptr, 0 };
+			co_return ResultError("PyBridge not ready");
 		}
 
 		status = Status::Pending;
@@ -182,53 +236,15 @@ namespace coluster {
 			object = PyObject_CallObject(callable.get()->GetPyObject(), tuple);
 			Py_DECREF(tuple);
 
-			if (PyErr_Occurred() != nullptr) {
-				PyObject* ptype = nullptr;
-				PyObject* pvalue = nullptr;
-				PyObject* ptraceback = nullptr;
-				PyErr_Fetch(&ptype, &pvalue, &ptraceback);
-				PyErr_NormalizeException(&ptype, &pvalue, &ptraceback);
-
-				if (ptype != nullptr) {
-					Py_DECREF(ptype);
-				}
-
-				if (pvalue != nullptr) {
-					PyObject* pstr = PyObject_Str(pvalue);
-					if (pstr) {
-						Py_ssize_t size = 0;
-#if PY_MAJOR_VERSION < 3
-						const char* s = nullptr;
-						PyString_AsStringAndSize(pstr, &s, &size);
-#else
-						const char* s = PyUnicode_AsUTF8AndSize(pstr, &size);
-#endif
-						if (s != nullptr) {
-							message = std::string(s, size);
-						}
-
-						Py_DECREF(pstr);
-					}
-
-					Py_DECREF(pvalue);
-				}
-
-				if (ptraceback != nullptr) {
-					Py_DECREF(ptraceback);
-				}
-
-				PyErr_Clear();
+			if (object == nullptr) {
+				message = ClearError();
 			}
 		} while (false);
 
 		co_await Warp::Switch(std::source_location::current(), currentWarp, &GetWarp());
 		if (status != Status::Invalid) {
-			if (object == nullptr) {
-				dataExchange.native_push_variable(false);
-				dataExchange.native_push_variable(message.empty() ? "Unknown Python Error!" : message);
-			} else {
+			if (object != nullptr) {
 				PyGILGuard guard;
-				dataExchange.native_push_variable(true);
 				if (!UnpackObject(dataExchange, object)) {
 					dataExchange.native_pop_variable(1);
 					dataExchange.native_push_variable(lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, object));
@@ -243,15 +259,19 @@ namespace coluster {
 
 		if (status != Status::Invalid) {
 			status = Status::Ready;
-			co_return StackIndex { dataExchange, 2 };
+			if (object != nullptr) {
+				co_return StackIndex { dataExchange, 1 };
+			} else {
+				co_return ResultError("PyBridge::Call() -> " + message);
+			}
 		} else {
-			co_return StackIndex { nullptr, 0 };
+			co_return ResultError("PyBridge not ready");
 		}
 	}
 
-	Coroutine<RefPtr<PyBridge::Object>> PyBridge::Pack(LuaState lua, Ref&& r) {
+	Coroutine<Result<RefPtr<PyBridge::Object>>> PyBridge::Pack(LuaState lua, Ref&& r) {
 		if (status != Status::Ready) {
-			co_return RefPtr<Object>();
+			co_return ResultError("PyBridge not ready");
 		}
 
 		status = Status::Pending;
@@ -277,7 +297,7 @@ namespace coluster {
 		} else {
 			lua.deref(std::move(s));
 			QueueDeleteObject(object);
-			co_return RefPtr<Object>();
+			co_return ResultError("PyBridge not ready");
 		}
 	}
 
@@ -303,9 +323,9 @@ namespace coluster {
 		return objectTypeRef;
 	}
 
-	Coroutine<Ref> PyBridge::Unpack(LuaState lua, RefPtr<Object>&& obj) {
+	Coroutine<Result<Ref>> PyBridge::Unpack(LuaState lua, RefPtr<Object>&& obj) {
 		if (status != Status::Ready) {
-			co_return RefPtr<Object>();
+			co_return ResultError("PyBridge not ready");
 		}
 
 		status = Status::Pending;
@@ -322,7 +342,7 @@ namespace coluster {
 			status = Status::Ready;
 			co_return Ref(luaL_ref(dataExchangeStack, LUA_REGISTRYINDEX));
 		} else {
-			co_return Ref();
+			co_return ResultError("PyBridge not ready");
 		}
 	}
 

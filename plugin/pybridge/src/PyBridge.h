@@ -48,11 +48,11 @@ namespace coluster {
 			PyObject* object;
 		};
 
-		Coroutine<RefPtr<Object>> Get(LuaState lua, std::string_view name);
-		Coroutine<StackIndex> Call(LuaState lua, Required<Object*> callable, StackIndex parameters);
-		Coroutine<RefPtr<Object>> Import(LuaState lua, std::string_view name);
-		Coroutine<RefPtr<Object>> Pack(LuaState lua, Ref&& ref);
-		Coroutine<Ref> Unpack(LuaState lua, RefPtr<Object>&& object);
+		Coroutine<Result<RefPtr<Object>>> Get(LuaState lua, std::string_view name);
+		Coroutine<Result<StackIndex>> Call(LuaState lua, Required<Object*> callable, StackIndex parameters);
+		Coroutine<Result<RefPtr<Object>>> Import(LuaState lua, std::string_view name);
+		Coroutine<Result<RefPtr<Object>>> Pack(LuaState lua, Ref&& ref);
+		Coroutine<Result<Ref>> Unpack(LuaState lua, RefPtr<Object>&& object);
 		void lua_initialize(LuaState lua, int index);
 		void lua_finalize(LuaState lua, int index);
 		static void lua_registar(LuaState lua);

@@ -9,14 +9,13 @@ local function Main(coluster, services)
 	local luabridge = services.LuaBridge
 	local pybridge = services.PyBridge
 	if pybridge.object then
-		local pyPrint = pybridge.object:Get("print")
-		local success, message = pybridge.object:Call(pyPrint, "hello, pybridge!", 716)
-		--local pyEval = pybridge.object:Get("eval")
-		--local success, message = pybridge.object:Call(pyEval, "print(hello, pybridge!)")
+		local success, message = pcall(function ()
+			local pyPrint = pybridge.object:Get("print")
+			local ret = pybridge.object:Call(pyPrint, "hello, pybridge!", 716)
+			print("PyCall: " .. tostring(ret))
+		end)
 
-		if success then
-			print("PyCall: " .. tostring(message))
-		else
+		if not success then
 			print("PyCall error: " .. tostring(message))
 		end
 	end
