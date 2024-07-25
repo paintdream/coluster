@@ -175,7 +175,7 @@ namespace coluster {
 		if (pendingOperations.fetch_add(1, std::memory_order_release) == 0) {
 			asyncWorker.queue([this]() {
 				Poll();
-			}, Priority_Lowest);
+			}, static_cast<size_t>(Priority::Lowest));
 		}
 	}
 

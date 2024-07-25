@@ -82,11 +82,11 @@ namespace coluster {
 	template <typename tree_key_t, typename meta = TreeOverlap<tree_key_t>>
 	using Tree = iris::iris_tree_t<tree_key_t, meta>;
 
-	enum Priority : size_t {
-		Priority_Highest = 0,
-		Priority_Normal,
-		Priority_Lowest,
-		Priority_Count
+	enum class Priority : size_t {
+		Highest = 0,
+		Normal,
+		Lowest,
+		Count
 	};
 
 	COLUSTER_API void SetCurrentCoroutineAddress(void* address) noexcept;
@@ -123,16 +123,16 @@ namespace coluster {
 		}
 	};
 
-	enum QuotaType : size_t {
-		QuotaType_HostMemory = 0,
-		QuotaType_DeviceMemory,
-		QuotaType_Count
+	enum class QuotaType : size_t {
+		HostMemory = 0,
+		DeviceMemory,
+		Count
 	};
 
 	struct Warp;
 	struct AsyncWorker : iris::iris_async_worker_t<> {
 		using Base = iris::iris_async_worker_t<>;
-		using MemoryQuota = Quota<size_t, QuotaType_Count>; // Main Memory & Device Memory
+		using MemoryQuota = Quota<size_t, static_cast<size_t>(QuotaType::Count)>; // Main Memory & Device Memory
 		using MemoryQuotaQueue = QuotaQueue<MemoryQuota, Warp, AsyncWorker>;
 		AsyncWorker();
 

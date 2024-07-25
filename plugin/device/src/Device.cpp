@@ -282,7 +282,7 @@ namespace coluster {
 			requestSubmitCompletions.push(&completion);
 
 			if (queueingState.exchange(queue_state_t::pending, std::memory_order_release) == queue_state_t::idle) {
-				get_async_worker().queue([this]() { PollOnHelper(); }, Priority_Normal);
+				get_async_worker().queue([this]() { PollOnHelper(); }, static_cast<size_t>(Priority::Normal));
 			}
 		});
 	}

@@ -30,7 +30,7 @@ int luaL_requiref(lua_State* L, const char* modname, lua_CFunction openf, int gl
 
 class Coluster : public AsyncWorker {
 public:
-	enum Status : size_t {
+	enum class Status : size_t {
 		Ready,
 		Running,
 		Stopping,
@@ -174,10 +174,10 @@ Result<bool> Coluster::Start(LuaState lua, size_t threadCount) {
 
 	size_t count = std::thread::hardware_concurrency();
 	if (threadCount != 0) {
-		count = std::min(threadCount, count + Priority_Count); // at most hardware_concurrency + Priority_Count threads
+		count = std::min(threadCount, count + static_cast<size_t>(Priority::Count)); // at most hardware_concurrency + Priority_Count threads
 	}
 
-	count = std::max(count, iris::iris_verify_cast<size_t>(Priority_Count)); // at least Priority_Count threads
+	count = std::max(count, static_cast<size_t>(Priority::Count)); // at least Priority_Count threads
 
 	Status expected = Status::Ready;
 	if (workerStatus.compare_exchange_strong(expected, Status::Running, std::memory_order_relaxed)) {
@@ -547,7 +547,7 @@ void Coluster::doREPL(lua_State* L) {
 
 bool Coluster::Poll(bool pollAsyncTasks) {
 	if (!scriptWarp->join([] {std::this_thread::sleep_for(std::chrono::milliseconds(50)); })) {
-		return !pollAsyncTasks || AsyncWorker::poll(Priority_Highest);
+		return !pollAsyncTasks || AsyncWorker::poll(static_cast<size_t>(Priority::Highest));
 	} else {
 		return false;
 	}
@@ -588,7 +588,7 @@ Result<bool> Coluster::Join(LuaState lua, Ref&& finalizer, bool enableConsole) {
 
 			// manually polling events
 			while (!AsyncWorker::is_terminated()) {
-				AsyncWorker::poll_delay(Priority_Highest, std::chrono::milliseconds(20));
+				AsyncWorker::poll_delay(static_cast<size_t>(Priority::Highest), std::chrono::milliseconds(20));
 			}
 
 			scriptWarp->Acquire();

@@ -45,7 +45,7 @@ namespace coluster {
 			lua_State* L = lua.get_state();
 			while ((warp == nullptr || !warp->join(waiter)) || !scriptWarp->join(waiter) || poll()) {
 				scriptWarp->Release();
-				poll_delay(Priority_Count, std::chrono::milliseconds(20));
+				poll_delay(static_cast<size_t>(Priority::Count), std::chrono::milliseconds(20));
 				scriptWarp->Acquire();
 			}
 		} else if (warp != nullptr) {
@@ -170,7 +170,7 @@ namespace coluster {
 	void Warp::Acquire() {
 		while (!preempt()) {
 			if (!get_async_worker().is_terminated()) {
-				get_async_worker().poll_delay(Priority_Highest, std::chrono::milliseconds(20));
+				get_async_worker().poll_delay(static_cast<size_t>(Priority::Highest), std::chrono::milliseconds(20));
 			} else {
 				std::this_thread::sleep_for(std::chrono::milliseconds(20));
 			}
