@@ -50,6 +50,7 @@ namespace coluster {
 
 		Coroutine<Result<RefPtr<Object>>> Get(LuaState lua, std::string_view name);
 		Coroutine<Result<StackIndex>> Call(LuaState lua, Required<Object*> callable, StackIndex parameters);
+		Coroutine<Result<RefPtr<Object>>> Eval(LuaState lua, std::string_view code, std::string_view name);
 		Coroutine<Result<RefPtr<Object>>> Import(LuaState lua, std::string_view name);
 		Coroutine<Result<RefPtr<Object>>> Pack(LuaState lua, Ref&& ref);
 		Coroutine<Result<Ref>> Unpack(LuaState lua, RefPtr<Object>&& object);

@@ -541,12 +541,12 @@ namespace iris {
 		}
 
 		// make object from registry meta
-		template <typename type_t>
+		template <typename type_t, int user_value_count = 0>
 		refptr_t<type_t> make_registry_object_view(type_t* object) {
-			return make_object_view<type_t>(get_registry<ref_t>(reinterpret_cast<const void*>(get_hash<type_t>())), object);
+			return make_object_view<type_t, user_value_count>(get_registry<ref_t>(reinterpret_cast<const void*>(get_hash<type_t>())), object);
 		}
 
-		template <typename type_t, typename meta_t, typename... args_t>
+		template <typename type_t, int user_value_count = 0, typename meta_t, typename... args_t>
 		refptr_t<type_t> make_object_view(meta_t&& meta, type_t* object) {
 			IRIS_PROFILE_SCOPE(__FUNCTION__);
 			IRIS_ASSERT(object != nullptr);
@@ -556,7 +556,7 @@ namespace iris {
 			IRIS_ASSERT(*meta.template get<const void*>(*this, "__hash") == reinterpret_cast<const void*>(get_hash<type_t>()));
 
 			static_assert(sizeof(type_t*) == sizeof(void*), "Unrecognized architecture.");
-			type_t** p = reinterpret_cast<type_t**>(lua_newuserdatauv(L, sizeof(type_t*), 0));
+			type_t** p = reinterpret_cast<type_t**>(lua_newuserdatauv(L, sizeof(type_t*), user_value_count));
 			*p = object;
 
 			push_variable(L, std::forward<meta_t>(meta));

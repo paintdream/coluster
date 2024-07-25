@@ -10,6 +10,7 @@ local function Main(coluster, services)
 	local pybridge = services.PyBridge
 	if pybridge.object then
 		local success, message = pcall(function ()
+			pybridge.object:Eval("print('loaded code!')")
 			local pyPrint = pybridge.object:Get("print")
 			local ret = pybridge.object:Call(pyPrint, "hello, pybridge!", 716)
 			print("PyCall: " .. tostring(ret))

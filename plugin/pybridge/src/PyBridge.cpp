@@ -84,6 +84,7 @@ namespace coluster {
 		lua.set_current<&PyBridge::Pack>("Pack");
 		lua.set_current<&PyBridge::Unpack>("Unpack");
 		lua.set_current<&PyBridge::Import>("Import");
+		lua.set_current<&PyBridge::Eval>("Eval");
 		lua.set_current<&PyBridge::Get>("Get");
 	}
 
@@ -168,6 +169,52 @@ namespace coluster {
 		}
 
 		return message;
+	}
+
+	Coroutine<Result<RefPtr<PyBridge::Object>>> PyBridge::Eval(LuaState lua, std::string_view code, std::string_view name) {
+		if (status != Status::Ready) {
+			co_return ResultError("PyBridge not ready");
+		}
+
+		status = Status::Pending;
+		Ref s = lua.get_context<Ref>(LuaState::context_this_t());
+		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
+		PyObject* object = nullptr;
+		std::string message;
+		do {
+			PyGILGuard guard;
+			PyObject* compiled = Py_CompileString(code.data(), name.data(), Py_eval_input);
+			if (compiled == nullptr) {
+				message = ClearError();
+			} else {
+				PyObject* globals = PyDict_New();
+				PyObject* locals = PyDict_New();
+				object = PyEval_EvalCode(compiled, globals, locals);
+				Py_DECREF(compiled);
+				Py_DECREF(globals);
+				Py_DECREF(locals);
+
+				if (object == nullptr) {
+					message = ClearError();
+				}
+			}
+		} while (false);
+
+		co_await Warp::Switch(std::source_location::current(), currentWarp);
+		if (status != Status::Invalid) {
+			status = Status::Ready;
+
+			if (object != nullptr) {
+				co_return lua.make_object<Object>(FetchObjectType(lua, currentWarp, std::move(s)), *this, object);
+			} else {
+				co_return ResultError("PyBridge::Eval() -> " + message);
+			}
+		} else {
+			lua.deref(std::move(s));
+			QueueDeleteObject(object);
+			co_return ResultError("PyBridge not ready");
+		}
+
 	}
 
 	Coroutine<Result<RefPtr<PyBridge::Object>>> PyBridge::Import(LuaState lua, std::string_view name) {

@@ -60,7 +60,7 @@ namespace coluster {
 		}
 	}
 
-	Coroutine<Result<RefPtr<LuaBridge::Object>>> LuaBridge::Load(LuaState lua, std::string_view code) {
+	Coroutine<Result<RefPtr<LuaBridge::Object>>> LuaBridge::Load(LuaState lua, std::string_view code, std::string_view name) {
 		if (status != Status::Ready) {
 			co_return ResultError("LuaBridge not ready");
 		}
@@ -70,7 +70,7 @@ namespace coluster {
 		Warp* currentWarp = co_await Warp::Switch(std::source_location::current(), &GetWarp());
 		LuaState target(state);
 
-		auto ret = target.load(code);
+		auto ret = target.load(code, name);
 		co_await Warp::Switch(std::source_location::current(), currentWarp);
 
 		if (!ret) {
