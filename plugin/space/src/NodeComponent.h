@@ -80,15 +80,16 @@ namespace coluster {
 		static void lua_registar(LuaState lua);
 
 		bool Create(Entity entity, Ref&& ref);
-		void Delete(Entity entity);
 		void Clear();
-		bool Move(Entity entity, const std::array<float, 6>& boundingBox);
-		std::vector<Entity> Query(Entity entity, const std::array<float, 6>& boundingBox, const std::vector<float>& convexCuller);
-		Ref GetObject(LuaState lua, Entity entity);
-		void SetObject(LuaState lua, Entity entity, Ref&& ref);
-		bool Attach(Entity parent, Entity child);
-		bool Detach(Entity entity);
-		Entity Optimize(Entity entity);
+
+		Result<void> Delete(Entity entity);
+		Result<void> Move(Entity entity, const std::array<float, 6>& boundingBox);
+		Result<std::vector<Entity>> Query(Entity entity, const std::array<float, 6>& boundingBox, const std::vector<float>& convexCuller);
+		Result<Ref> GetObject(LuaState lua, Entity entity);
+		Result<void> SetObject(LuaState lua, Entity entity, Ref&& ref);
+		Result<void> Attach(Entity parent, Entity child);
+		Result<void> Detach(Entity entity);
+		Result<Entity> Optimize(Entity entity);
 
 	protected:
 		Space& space;

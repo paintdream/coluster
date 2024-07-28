@@ -40,15 +40,24 @@ namespace coluster {
 		return subSystem.insert(entity, NodeComponent(entity, std::move(ref)));
 	}
 
-	void NodeComponentSystem::Delete(Entity entity) {
+	Result<void> NodeComponentSystem::Delete(Entity entity) {
+		if (!subSystem.valid(entity)) {
+			return ResultError("Invalid entity!");
+		}
+
 		subSystem.remove(entity);
+		return {};
 	}
 
 	void NodeComponentSystem::Clear() {
 		subSystem.clear();
 	}
 
-	Ref NodeComponentSystem::GetObject(LuaState lua, Entity entity) {
+	Result<Ref> NodeComponentSystem::GetObject(LuaState lua, Entity entity) {
+		if (!subSystem.valid(entity)) {
+			return ResultError("Invalid entity!");
+		}
+
 		Ref ref;
 
 		subSystem.for_entity<NodeComponent>(entity, [&lua, &ref](NodeComponent& node) noexcept {
@@ -58,14 +67,24 @@ namespace coluster {
 		return ref;
 	}
 
-	void NodeComponentSystem::SetObject(LuaState lua, Entity entity, Ref&& ref) {
+	Result<void> NodeComponentSystem::SetObject(LuaState lua, Entity entity, Ref&& ref) {
+		if (!subSystem.valid(entity)) {
+			return ResultError("Invalid entity!");
+		}
+
 		subSystem.for_entity<NodeComponent>(entity, [&lua, &ref](NodeComponent& node) noexcept {
 			lua.deref(std::move(node.GetEntityObject()));
 			node.GetEntityObject() = std::move(ref);
 		});
+
+		return {};
 	}
 
-	bool NodeComponentSystem::Move(Entity entity, const std::array<float, 6>& boundingBox) {
+	Result<void> NodeComponentSystem::Move(Entity entity, const std::array<float, 6>& boundingBox) {
+		if (!subSystem.valid(entity)) {
+			return ResultError("Invalid entity!");
+		}
+
 		bool success = false;
 		subSystem.for_entity<NodeComponent>(entity, [&boundingBox, &success](NodeComponent& node) noexcept {
 			if (node.get_parent() == nullptr) {
@@ -74,35 +93,56 @@ namespace coluster {
 			}
 		});
 
-		return success;
+		if (!success) {
+			return ResultError("Can only move isolated node!");
+		} else {
+			return {};
+		}
 	}
 
-	bool NodeComponentSystem::Attach(Entity parent, Entity child) {
+	Result<void> NodeComponentSystem::Attach(Entity parent, Entity child) {
+		if (!subSystem.valid(parent)) {
+			return ResultError("Invalid parent entity!");
+		}
+
+		if (!subSystem.valid(child)) {
+			return ResultError("Invalid child entity!");
+		}
+
 		bool success = false;
 		subSystem.for_entity<NodeComponent>(parent, [this, child, &success](NodeComponent& parentNodeComponent) noexcept {
 			subSystem.for_entity<NodeComponent>(child, [&parentNodeComponent, &success](NodeComponent& subNodeComponent) noexcept {
-				subNodeComponent.set_parent(&parentNodeComponent);
-				success = true;
+				if (subNodeComponent.get_parent() == nullptr && subNodeComponent.get_left() != nullptr && subNodeComponent.get_right() != nullptr) {
+					subNodeComponent.attach(&parentNodeComponent);
+					success = true;
+				}
 			});
 		});
 
-		return success;
+		if (!success) {
+			return ResultError("Child node is not an isolated node!");
+		} else {
+			return {};
+		}
 	}
 
-	bool NodeComponentSystem::Detach(Entity entity) {
-		bool success = false;
-		subSystem.for_entity<NodeComponent>(entity, [&success](NodeComponent& node) noexcept {
-			if (node.get_parent() != nullptr) {
-				success = true;
-			}
+	Result<void> NodeComponentSystem::Detach(Entity entity) {
+		if (!subSystem.valid(entity)) {
+			return ResultError("Invalid entity!");
+		}
 
-			node.set_parent(nullptr);
+		subSystem.for_entity<NodeComponent>(entity, [](NodeComponent& node) noexcept {
+			node.detach([](auto* left_node, auto* right_node) { return true; });
 		});
 
-		return success;
+		return {};
 	}
 
-	std::vector<Entity> NodeComponentSystem::Query(Entity entity, const std::array<float, 6>& boundingBox, const std::vector<float>& convexCuller) {
+	Result<std::vector<Entity>> NodeComponentSystem::Query(Entity entity, const std::array<float, 6>& boundingBox, const std::vector<float>& convexCuller) {
+		if (!subSystem.valid(entity)) {
+			return ResultError("Invalid entity!");
+		}
+
 		std::vector<Entity> result;
 		Box box(Vector3(boundingBox[0], boundingBox[1], boundingBox[2]), Vector3(boundingBox[3], boundingBox[4], boundingBox[5]));
 		subSystem.for_entity<NodeComponent>(entity, [&result, &box, &convexCuller](auto& nodeBase) {
@@ -132,7 +172,11 @@ namespace coluster {
 		return result;
 	}
 
-	Entity NodeComponentSystem::Optimize(Entity entity) {
+	Result<Entity> NodeComponentSystem::Optimize(Entity entity) {
+		if (!subSystem.valid(entity)) {
+			return ResultError("Invalid entity!");
+		}
+
 		Entity result = entity;
 		subSystem.for_entity<NodeComponent>(entity, [&result](auto& nodeBase) {
 			if (nodeBase.get_parent() == nullptr) {

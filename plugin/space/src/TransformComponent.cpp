@@ -20,8 +20,13 @@ namespace coluster {
 		return subSystem.insert(entity, TransformComponent(mat));
 	}
 
-	void TransformComponentSystem::Delete(Entity entity) {
+	Result<void> TransformComponentSystem::Delete(Entity entity) {
+		if (!subSystem.valid(entity)) {
+			return ResultError("Entity not found!");
+		}
+
 		subSystem.remove(entity);
+		return {};
 	}
 
 	void TransformComponentSystem::Clear() {
