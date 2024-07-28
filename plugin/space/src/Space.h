@@ -24,6 +24,7 @@ namespace coluster {
 
 		Ref TypeNodeComponentSystem(LuaState lua);
 		Ref TypeTransformComponentSystem(LuaState lua);
+		Ref TypeScriptComponentSystem(LuaState lua);
 		Ref TypeDataPipe(LuaState lua);
 		Ref TypeDataBuffer(LuaState lua);
 		Ref TypeObjectDict(LuaState lua);

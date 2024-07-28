@@ -13,6 +13,7 @@ namespace coluster {
 		lua.set_current<&Space::ClearEntities>("ClearEntities");
 		lua.set_current<&Space::TypeNodeComponentSystem>("TypeNodeComponentSystem");
 		lua.set_current<&Space::TypeTransformComponentSystem>("TypeTransformComponentSystem");
+		lua.set_current<&Space::TypeScriptComponentSystem>("TypeScriptComponentSystem");
 		lua.set_current<&Space::TypeDataPipe>("TypeDataPipe");
 		lua.set_current<&Space::TypeObjectDict>("TypeObjectDict");
 	}
@@ -35,6 +36,7 @@ namespace coluster {
 // implement for sub types
 #include "NodeComponent.h"
 #include "TransformComponent.h"
+#include "ScriptComponent.h"
 #include "DataPipe.h"
 #include "DataBuffer.h"
 #include "ObjectDict.h"
@@ -48,6 +50,12 @@ namespace coluster {
 
 	Ref Space::TypeTransformComponentSystem(LuaState lua) {
 		Ref type = lua.make_type<TransformComponentSystem>("TransformComponentSystem", std::ref(*this));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
+		return type;
+	}
+
+	Ref Space::TypeScriptComponentSystem(LuaState lua) {
+		Ref type = lua.make_type<ScriptComponentSystem>("ScriptComponentSystem", std::ref(*this));
 		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
 		return type;
 	}
