@@ -2,16 +2,8 @@
 
 namespace coluster {
 	NodeComponent::NodeComponent() noexcept {}
-	NodeComponent::NodeComponent(Entity e, Ref&& r) noexcept : ref(std::move(r)) { key.entity = e; }
-	NodeComponent::~NodeComponent() noexcept {
-		if (ref) {
-			Warp* currentWarp = Warp::get_current_warp();
-			assert(currentWarp != nullptr);
-			lua_State* L = currentWarp->GetLuaRoot();
-			assert(L != nullptr);
-			LuaState(L).deref(std::move(ref));
-		}
-	}
+	NodeComponent::NodeComponent(Entity e) noexcept { key.entity = e; }
+	NodeComponent::~NodeComponent() noexcept {}
 
 	NodeComponentSystem::NodeComponentSystem(Space& s) : space(s) {
 		space.GetSystems().attach(subSystem);
@@ -28,16 +20,14 @@ namespace coluster {
 		lua.set_current<&NodeComponentSystem::Delete>("Delete");
 		lua.set_current<&NodeComponentSystem::Clear>("Clear");
 		lua.set_current<&NodeComponentSystem::Move>("Move");
-		lua.set_current<&NodeComponentSystem::GetObject>("GetObject");
-		lua.set_current<&NodeComponentSystem::SetObject>("SetObject");
 		lua.set_current<&NodeComponentSystem::Query>("Query");
 		lua.set_current<&NodeComponentSystem::Attach>("Attach");
 		lua.set_current<&NodeComponentSystem::Detach>("Detach");
 		lua.set_current<&NodeComponentSystem::Optimize>("Optimize");
 	}
 
-	bool NodeComponentSystem::Create(Entity entity, Ref&& ref) {
-		return subSystem.insert(entity, NodeComponent(entity, std::move(ref)));
+	bool NodeComponentSystem::Create(Entity entity) {
+		return subSystem.insert(entity, NodeComponent(entity));
 	}
 
 	Result<void> NodeComponentSystem::Delete(Entity entity) {
@@ -53,42 +43,15 @@ namespace coluster {
 		subSystem.clear();
 	}
 
-	Result<Ref> NodeComponentSystem::GetObject(LuaState lua, Entity entity) {
-		if (!subSystem.valid(entity)) {
-			return ResultError("Invalid entity!");
-		}
-
-		Ref ref;
-
-		subSystem.for_entity<NodeComponent>(entity, [&lua, &ref](NodeComponent& node) noexcept {
-			ref = lua.make_value(node.GetEntityObject());
-		});
-
-		return ref;
-	}
-
-	Result<void> NodeComponentSystem::SetObject(LuaState lua, Entity entity, Ref&& ref) {
-		if (!subSystem.valid(entity)) {
-			return ResultError("Invalid entity!");
-		}
-
-		subSystem.for_entity<NodeComponent>(entity, [&lua, &ref](NodeComponent& node) noexcept {
-			lua.deref(std::move(node.GetEntityObject()));
-			node.GetEntityObject() = std::move(ref);
-		});
-
-		return {};
-	}
-
-	Result<void> NodeComponentSystem::Move(Entity entity, const std::array<float, 6>& boundingBox) {
+	Result<void> NodeComponentSystem::Move(Entity entity, const std::array<float, 6>& boundingNodeBox) {
 		if (!subSystem.valid(entity)) {
 			return ResultError("Invalid entity!");
 		}
 
 		bool success = false;
-		subSystem.for_entity<NodeComponent>(entity, [&boundingBox, &success](NodeComponent& node) noexcept {
+		subSystem.for_entity<NodeComponent>(entity, [&boundingNodeBox, &success](NodeComponent& node) noexcept {
 			if (node.get_parent() == nullptr) {
-				node.set_key(Box(Vector3(boundingBox[0], boundingBox[1], boundingBox[2]), Vector3(boundingBox[3], boundingBox[4], boundingBox[5])));
+				node.set_key(NodeBox(Vector4(boundingNodeBox[0], boundingNodeBox[1], boundingNodeBox[2], -1.0f), Vector4(boundingNodeBox[3], boundingNodeBox[4], boundingNodeBox[5], 1.0f)));
 				success = true;
 			}
 		});
@@ -138,13 +101,13 @@ namespace coluster {
 		return {};
 	}
 
-	Result<std::vector<Entity>> NodeComponentSystem::Query(Entity entity, const std::array<float, 6>& boundingBox, const std::vector<float>& convexCuller) {
+	Result<std::vector<Entity>> NodeComponentSystem::Query(Entity entity, const std::array<float, 6>& boundingNodeBox, const std::vector<float>& convexCuller) {
 		if (!subSystem.valid(entity)) {
 			return ResultError("Invalid entity!");
 		}
 
 		std::vector<Entity> result;
-		Box box(Vector3(boundingBox[0], boundingBox[1], boundingBox[2]), Vector3(boundingBox[3], boundingBox[4], boundingBox[5]));
+		NodeBox box(Vector4(boundingNodeBox[0], boundingNodeBox[1], boundingNodeBox[2], -1.0f), Vector4(boundingNodeBox[3], boundingNodeBox[4], boundingNodeBox[5], 1.0f));
 		subSystem.for_entity<NodeComponent>(entity, [&result, &box, &convexCuller](auto& nodeBase) {
 			nodeBase.template query<true>(box, [&result](auto& subNodeComponentBase) {
 				result.emplace_back(static_cast<NodeComponent&>(subNodeComponentBase).GetEntity());
@@ -154,8 +117,8 @@ namespace coluster {
 					return true;
 
 				static constexpr Vector4 half(0.5f, 0.5f, 0.5f, 0.5f);
-				Vector4 begin = Vector4(bound.first, -1.0f);
-				Vector4 end = Vector4(bound.second, 1.0f);
+				Vector4 begin = bound.first;
+				Vector4 end = bound.second;
 				Vector4 size = end - begin;
 				Vector4 center = begin + size * half;
 
