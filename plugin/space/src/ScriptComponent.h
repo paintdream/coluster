@@ -42,6 +42,7 @@ namespace coluster {
 		static void lua_registar(LuaState lua);
 
 		bool Create(Entity entity, Ref&& ref);
+		bool Valid(Entity entity) noexcept;
 		Result<void> Delete(Entity entity);
 		void Clear();
 		Result<Ref> GetObject(LuaState lua, Entity entity);

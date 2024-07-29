@@ -24,6 +24,7 @@ namespace coluster {
 	void ScriptComponentSystem::lua_registar(LuaState lua) {
 		lua.set_current<&ScriptComponentSystem::Create>("Create");
 		lua.set_current<&ScriptComponentSystem::Delete>("Delete");
+		lua.set_current<&ScriptComponentSystem::Valid>("Valid");
 		lua.set_current<&ScriptComponentSystem::Clear>("Clear");
 		lua.set_current<&ScriptComponentSystem::GetObject>("GetObject");
 		lua.set_current<&ScriptComponentSystem::SetObject>("SetObject");
@@ -34,42 +35,41 @@ namespace coluster {
 	}
 
 	Result<void> ScriptComponentSystem::Delete(Entity entity) {
-		if (!subSystem.valid(entity)) {
+		if (subSystem.remove(entity)) {
+			return {};
+		} else {
 			return ResultError("Invalid entity!");
 		}
-
-		subSystem.remove(entity);
-		return {};
 	}
 
 	void ScriptComponentSystem::Clear() {
 		subSystem.clear();
 	}
 
+	bool ScriptComponentSystem::Valid(Entity entity) noexcept {
+		return subSystem.valid(entity);
+	}
+
 	Result<Ref> ScriptComponentSystem::GetObject(LuaState lua, Entity entity) {
-		if (!subSystem.valid(entity)) {
+		Ref ref;
+		if (subSystem.for_entity<ScriptComponent>(entity, [&lua, &ref](ScriptComponent& node) noexcept {
+			ref = lua.make_value(node.GetObject());
+		})) {
+			return ref;
+		} else {
 			return ResultError("Invalid entity!");
 		}
-
-		Ref ref;
-
-		subSystem.for_entity<ScriptComponent>(entity, [&lua, &ref](ScriptComponent& node) noexcept {
-			ref = lua.make_value(node.GetObject());
-		});
-
-		return ref;
 	}
 
 	Result<void> ScriptComponentSystem::SetObject(LuaState lua, Entity entity, Ref&& ref) {
-		if (!subSystem.valid(entity)) {
-			return ResultError("Invalid entity!");
-		}
-
-		subSystem.for_entity<ScriptComponent>(entity, [&lua, &ref](ScriptComponent& node) noexcept {
+		if (subSystem.for_entity<ScriptComponent>(entity, [&lua, &ref](ScriptComponent& node) noexcept {
 			lua.deref(std::move(node.GetObject()));
 			node.GetObject() = std::move(ref);
-		});
-
-		return {};
+		})) {
+			return {};
+		} else {
+			lua.deref(std::move(ref));
+			return ResultError("Invalid entity!");
+		}
 	}
 }

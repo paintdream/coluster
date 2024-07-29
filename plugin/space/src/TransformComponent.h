@@ -29,6 +29,7 @@ namespace coluster {
 		static void lua_registar(LuaState lua);
 
 		bool Create(Entity entity, const std::array<float, 16>& data);
+		bool Valid(Entity entity) noexcept;
 		Result<void> Delete(Entity entity);
 		void Clear();
 

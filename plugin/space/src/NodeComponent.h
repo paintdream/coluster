@@ -56,6 +56,7 @@ namespace coluster {
 		bool Create(Entity entity);
 		void Clear();
 
+		bool Valid(Entity entity) noexcept;
 		Result<void> Delete(Entity entity);
 		Result<void> Move(Entity entity, const std::array<float, 6>& boundingNodeBox);
 		Result<std::vector<Entity>> Query(Entity entity, const std::array<float, 6>& boundingNodeBox, const std::vector<float>& convexCuller);

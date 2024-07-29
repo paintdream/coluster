@@ -20,13 +20,16 @@ namespace coluster {
 		return subSystem.insert(entity, TransformComponent(mat));
 	}
 
-	Result<void> TransformComponentSystem::Delete(Entity entity) {
-		if (!subSystem.valid(entity)) {
-			return ResultError("Entity not found!");
-		}
+	bool TransformComponentSystem::Valid(Entity entity) noexcept {
+		return subSystem.valid(entity);
+	}
 
-		subSystem.remove(entity);
-		return {};
+	Result<void> TransformComponentSystem::Delete(Entity entity) {
+		if (subSystem.remove(entity)) {
+			return {};
+		} else {
+			return ResultError("Invalid entity!");
+		}
 	}
 
 	void TransformComponentSystem::Clear() {
@@ -38,6 +41,7 @@ namespace coluster {
 	void TransformComponentSystem::lua_registar(LuaState lua) {
 		lua.set_current<&TransformComponentSystem::Create>("Create");
 		lua.set_current<&TransformComponentSystem::Delete>("Delete");
+		lua.set_current<&TransformComponentSystem::Valid>("Valid");
 		lua.set_current<&TransformComponentSystem::Clear>("Clear");
 	}
 }
