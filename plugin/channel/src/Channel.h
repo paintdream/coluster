@@ -4,6 +4,7 @@
 //
 
 #pragma once
+
 #include "ChannelCommon.h"
 
 namespace coluster {

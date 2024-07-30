@@ -8,7 +8,7 @@ namespace coluster {
 		// by default, inputWarp == outputWarp == scriptWarp
 		Warp* currentWarp = Warp::get_current_warp();
 		inputWarp = currentWarp;
-		outputWarp = outputWarp;
+		outputWarp = currentWarp;
 	}
 
 	bool DataPipe::BindInputWarp(Warp* warp) noexcept {

@@ -4,6 +4,7 @@
 //
 
 #pragma once
+
 #include "../../../src/Coluster.h"
 
 #if !COLUSTER_MONOLITHIC

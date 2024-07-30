@@ -14,8 +14,6 @@ namespace coluster {
 		lua.set_current<&Space::TypeNodeComponentSystem>("TypeNodeComponentSystem");
 		lua.set_current<&Space::TypeTransformComponentSystem>("TypeTransformComponentSystem");
 		lua.set_current<&Space::TypeScriptComponentSystem>("TypeScriptComponentSystem");
-		lua.set_current<&Space::TypeDataPipe>("TypeDataPipe");
-		lua.set_current<&Space::TypeObjectDict>("TypeObjectDict");
 	}
 	
 	Entity Space::CreateEntity() {
@@ -37,9 +35,6 @@ namespace coluster {
 #include "NodeComponent.h"
 #include "TransformComponent.h"
 #include "ScriptComponent.h"
-#include "DataPipe.h"
-#include "DataBuffer.h"
-#include "ObjectDict.h"
 
 namespace coluster {
 	Ref Space::TypeNodeComponentSystem(LuaState lua) {
@@ -56,24 +51,6 @@ namespace coluster {
 
 	Ref Space::TypeScriptComponentSystem(LuaState lua) {
 		Ref type = lua.make_type<ScriptComponentSystem>("ScriptComponentSystem", std::ref(*this));
-		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
-		return type;
-	}
-
-	Ref Space::TypeDataPipe(LuaState lua) {
-		Ref type = lua.make_type<DataPipe>("DataPipe", std::ref(asyncWorker));
-		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
-		return type;
-	}
-
-	Ref Space::TypeDataBuffer(LuaState lua) {
-		Ref type = lua.make_type<DataBuffer>("DataBuffer", std::ref(asyncWorker));
-		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
-		return type;
-	}
-
-	Ref Space::TypeObjectDict(LuaState lua) {
-		Ref type = lua.make_type<ObjectDict>("ObjectDict", std::ref(asyncWorker));
 		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
 		return type;
 	}

@@ -214,7 +214,7 @@ namespace coluster {
 					break;
 				}
 			} else {
-				asyncWorker.poll_delay(Priority_Highest, std::chrono::milliseconds(20));
+				asyncWorker.poll_delay(static_cast<size_t>(Priority::Highest), std::chrono::milliseconds(20));
 			}
 		}
 #endif
