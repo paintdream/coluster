@@ -52,7 +52,7 @@ namespace coluster {
 
 	Result<Ref> ScriptComponentSystem::GetObject(LuaState lua, Entity entity) {
 		Ref ref;
-		if (subSystem.for_entity<ScriptComponent>(entity, [&lua, &ref](ScriptComponent& node) noexcept {
+		if (subSystem.filter<ScriptComponent>(entity, [&lua, &ref](ScriptComponent& node) noexcept {
 			ref = lua.make_value(node.GetObject());
 		})) {
 			return ref;
@@ -62,7 +62,7 @@ namespace coluster {
 	}
 
 	Result<void> ScriptComponentSystem::SetObject(LuaState lua, Entity entity, Ref&& ref) {
-		if (subSystem.for_entity<ScriptComponent>(entity, [&lua, &ref](ScriptComponent& node) noexcept {
+		if (subSystem.filter<ScriptComponent>(entity, [&lua, &ref](ScriptComponent& node) noexcept {
 			lua.deref(std::move(node.GetObject()));
 			node.GetObject() = std::move(ref);
 		})) {

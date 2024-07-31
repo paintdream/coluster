@@ -49,7 +49,7 @@ namespace coluster {
 
 	Result<void> NodeComponentSystem::Move(Entity entity, const std::array<float, 6>& boundingNodeBox) {
 		bool removed = false;
-		if (subSystem.for_entity<NodeComponent>(entity, [&boundingNodeBox, &removed](NodeComponent& node) noexcept {
+		if (subSystem.filter<NodeComponent>(entity, [&boundingNodeBox, &removed](NodeComponent& node) noexcept {
 			if (node.get_parent() == nullptr) {
 				node.set_key(NodeBox(Vector4(boundingNodeBox[0], boundingNodeBox[1], boundingNodeBox[2], -1.0f), Vector4(boundingNodeBox[3], boundingNodeBox[4], boundingNodeBox[5], 1.0f)));
 				removed = true;
@@ -69,8 +69,8 @@ namespace coluster {
 		bool success = false;
 		bool validChild = false;
 
-		if (subSystem.for_entity<NodeComponent>(parent, [this, child, &success, &validChild](NodeComponent& parentNodeComponent) noexcept {
-			validChild = subSystem.for_entity<NodeComponent>(child, [&parentNodeComponent, &success](NodeComponent& subNodeComponent) noexcept {
+		if (subSystem.filter<NodeComponent>(parent, [this, child, &success, &validChild](NodeComponent& parentNodeComponent) noexcept {
+			validChild = subSystem.filter<NodeComponent>(child, [&parentNodeComponent, &success](NodeComponent& subNodeComponent) noexcept {
 				if (subNodeComponent.get_parent() == nullptr && subNodeComponent.get_left() != nullptr && subNodeComponent.get_right() != nullptr) {
 					subNodeComponent.attach(&parentNodeComponent);
 					success = true;
@@ -92,7 +92,7 @@ namespace coluster {
 	}
 
 	Result<void> NodeComponentSystem::Detach(Entity entity) {
-		if (subSystem.for_entity<NodeComponent>(entity, [](NodeComponent& node) noexcept {
+		if (subSystem.filter<NodeComponent>(entity, [](NodeComponent& node) noexcept {
 			node.detach([](auto* left_node, auto* right_node) { return true; });
 		})) {
 			return {};
@@ -104,7 +104,7 @@ namespace coluster {
 	Result<std::vector<Entity>> NodeComponentSystem::Query(Entity entity, const std::array<float, 6>& boundingNodeBox, const std::vector<float>& convexCuller) {
 		std::vector<Entity> result;
 		NodeBox box(Vector4(boundingNodeBox[0], boundingNodeBox[1], boundingNodeBox[2], -1.0f), Vector4(boundingNodeBox[3], boundingNodeBox[4], boundingNodeBox[5], 1.0f));
-		if (subSystem.for_entity<NodeComponent>(entity, [&result, &box, &convexCuller](auto& nodeBase) {
+		if (subSystem.filter<NodeComponent>(entity, [&result, &box, &convexCuller](auto& nodeBase) {
 			nodeBase.template query<true>(box, [&result](auto& subNodeComponentBase) {
 				result.emplace_back(static_cast<NodeComponent&>(subNodeComponentBase).GetEntity());
 				return true;
@@ -135,7 +135,7 @@ namespace coluster {
 
 	Result<Entity> NodeComponentSystem::Optimize(Entity entity) {
 		Entity result = entity;
-		if (subSystem.for_entity<NodeComponent>(entity, [&result](auto& nodeBase) {
+		if (subSystem.filter<NodeComponent>(entity, [&result](auto& nodeBase) {
 			if (nodeBase.get_parent() == nullptr) {
 				NodeComponent* node = static_cast<NodeComponent*>(nodeBase.optimize());
 				result = node->GetEntity();
