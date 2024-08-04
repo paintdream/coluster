@@ -25,6 +25,7 @@ namespace coluster {
 		Ref TypeNodeComponentSystem(LuaState lua);
 		Ref TypeTransformComponentSystem(LuaState lua);
 		Ref TypeScriptComponentSystem(LuaState lua);
+		Ref TypeLinkComponentSystem(LuaState lua);
 
 		Entity CreateEntity();
 		void DeleteEntity(Entity entity);

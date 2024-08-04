@@ -27,9 +27,10 @@ namespace coluster {
 	public:
 		using Base = Tree<NodeBox, Overlap>;
 
-		NodeComponent() noexcept;
 		NodeComponent(Entity e) noexcept;
 		~NodeComponent() noexcept;
+		NodeComponent(NodeComponent&& rhs) noexcept;
+		NodeComponent& operator = (NodeComponent&& rhs) noexcept;
 
 		Entity GetEntity() const noexcept {
 			return key.entity;

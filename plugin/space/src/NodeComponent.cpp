@@ -1,9 +1,38 @@
 #include "NodeComponent.h"
 
 namespace coluster {
-	NodeComponent::NodeComponent() noexcept {}
 	NodeComponent::NodeComponent(Entity e) noexcept { key.entity = e; }
 	NodeComponent::~NodeComponent() noexcept {}
+
+	NodeComponent::NodeComponent(NodeComponent&& rhs) noexcept {
+		*this = std::move(rhs);
+	}
+
+	NodeComponent& NodeComponent::operator = (NodeComponent&& rhs) noexcept {
+		Base::operator = (std::move(rhs));
+
+		NodeComponent* parent = static_cast<NodeComponent*>(parent_node);
+		if (parent != nullptr) {
+			if (parent->left_node == &rhs) {
+				parent->left_node = this;
+			} else {
+				assert(parent->right_node == &rhs);
+				parent->right_node = this;
+			}
+		}
+
+		NodeComponent* left = static_cast<NodeComponent*>(left_node);
+		if (left != nullptr) {
+			left->parent_node = this;
+		}
+
+		NodeComponent* right = static_cast<NodeComponent*>(right_node);
+		if (right != nullptr) {
+			right->parent_node = this;
+		}
+
+		return *this;
+	}
 
 	NodeComponentSystem::NodeComponentSystem(Space& s) : space(s) {
 		space.GetSystems().attach(subSystem);
@@ -68,23 +97,32 @@ namespace coluster {
 	Result<void> NodeComponentSystem::Attach(Entity parent, Entity child) {
 		bool success = false;
 		bool validChild = false;
+		bool validParent = false;
 
-		if (subSystem.filter<NodeComponent>(parent, [this, child, &success, &validChild](NodeComponent& parentNodeComponent) noexcept {
-			validChild = subSystem.filter<NodeComponent>(child, [&parentNodeComponent, &success](NodeComponent& subNodeComponent) noexcept {
-				if (subNodeComponent.get_parent() == nullptr && subNodeComponent.get_left() != nullptr && subNodeComponent.get_right() != nullptr) {
-					subNodeComponent.attach(&parentNodeComponent);
-					success = true;
-				}
-			});
+		if (subSystem.filter<NodeComponent>(parent, [this, child, &success, &validChild, &validParent](NodeComponent& parentNodeComponent) noexcept {
+			if (parentNodeComponent.get_parent() == nullptr) {
+				validChild = subSystem.filter<NodeComponent>(child, [&parentNodeComponent, &success](NodeComponent& subNodeComponent) noexcept {
+					if (subNodeComponent.get_parent() == nullptr && subNodeComponent.get_left() != nullptr && subNodeComponent.get_right() != nullptr) {
+						subNodeComponent.attach(&parentNodeComponent);
+						success = true;
+					}
+				});
+			} else {
+				validParent = false;
+			}
 		})) {
-			if (validChild) {
-				if (success) {
-					return {};
+			if (validParent) {
+				if (validChild) {
+					if (success) {
+						return {};
+					} else {
+						return ResultError("Child node is not an isolated node!");
+					}
 				} else {
-					return ResultError("Child node is not an isolated node!");
+					return ResultError("Invalid child entity!");
 				}
 			} else {
-				return ResultError("Invalid child entity!");
+				return ResultError("Invalid parent entity!");
 			}
 		} else {
 			return ResultError("Invalid parent entity!");

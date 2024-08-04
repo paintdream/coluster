@@ -2,8 +2,6 @@
 #include "NodeComponent.h"
 
 namespace coluster {
-	TransformComponent::TransformComponent() noexcept {}
-
 	TransformComponentSystem::TransformComponentSystem(Space& s) : space(s) {
 		space.GetSystems().attach(subSystem);
 	}

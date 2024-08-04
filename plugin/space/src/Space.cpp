@@ -35,6 +35,7 @@ namespace coluster {
 #include "NodeComponent.h"
 #include "TransformComponent.h"
 #include "ScriptComponent.h"
+#include "LinkComponent.h"
 
 namespace coluster {
 	Ref Space::TypeNodeComponentSystem(LuaState lua) {
@@ -51,6 +52,12 @@ namespace coluster {
 
 	Ref Space::TypeScriptComponentSystem(LuaState lua) {
 		Ref type = lua.make_type<ScriptComponentSystem>("ScriptComponentSystem", std::ref(*this));
+		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
+		return type;
+	}
+
+	Ref Space::TypeLinkComponentSystem(LuaState lua) {
+		Ref type = lua.make_type<LinkComponentSystem>("LinkComponentSystem", std::ref(*this));
 		type.set(lua, "__host", lua.get_context<Ref>(LuaState::context_this_t()));
 		return type;
 	}

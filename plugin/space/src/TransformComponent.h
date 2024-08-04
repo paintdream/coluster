@@ -12,7 +12,6 @@ namespace coluster {
 	using Matrix4x4 = glm::mat4x4;
 	class TransformComponent {
 	public:
-		TransformComponent() noexcept;
 		TransformComponent(const Matrix4x4& mat) noexcept : matrix(mat) {}
 
 	protected:
