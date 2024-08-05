@@ -8,24 +8,25 @@ namespace coluster {
 
 	void Space::lua_finalize(LuaState lua, int index) {}
 	void Space::lua_registar(LuaState lua) {
-		lua.set_current<&Space::CreateEntity>("CreateEntity");
-		lua.set_current<&Space::DeleteEntity>("DeleteEntity");
-		lua.set_current<&Space::ClearEntities>("ClearEntities");
+		lua.set_current<&Space::Create>("CreateEntity");
+		lua.set_current<&Space::Delete>("DeleteEntity");
+		lua.set_current<&Space::Clear>("ClearEntities");
 		lua.set_current<&Space::TypeNodeComponentSystem>("TypeNodeComponentSystem");
 		lua.set_current<&Space::TypeTransformComponentSystem>("TypeTransformComponentSystem");
 		lua.set_current<&Space::TypeScriptComponentSystem>("TypeScriptComponentSystem");
+		lua.set_current<&Space::TypeLinkComponentSystem>("TypeScriptComponentSystem");
 	}
 	
-	Entity Space::CreateEntity() {
+	Entity Space::Create() {
 		return entityAllocator.allocate();
 	}
 
-	void Space::DeleteEntity(Entity entity) {
+	void Space::Delete(Entity entity) {
 		theSystems.remove(entity);
 		entityAllocator.free(entity);
 	}
 
-	void Space::ClearEntities() {
+	void Space::Clear() {
 		theSystems.clear();
 		entityAllocator.reset();
 	}

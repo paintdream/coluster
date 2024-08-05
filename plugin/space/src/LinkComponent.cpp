@@ -1,48 +1,24 @@
 #include "LinkComponent.h"
 
 namespace coluster {
-	LinkComponentSystem::LinkComponentSystem(Space& s) : space(s) {
-		space.GetSystems().attach(subSystem);
-	}
+	LinkComponentSystem::LinkComponentSystem(Space& s) : BaseClass(s) {}
 
-	LinkComponentSystem::~LinkComponentSystem() noexcept {
-		space.GetSystems().detach(subSystem);
-	}
-
-	void LinkComponentSystem::lua_initialize(LuaState lua, int index) {}
-	void LinkComponentSystem::lua_finalize(LuaState lua, int index) {}
 	void LinkComponentSystem::lua_registar(LuaState lua) {
+		BaseClass::lua_registar(lua);
+
 		lua.set_current<&LinkComponentSystem::Create>("Create");
-		lua.set_current<&LinkComponentSystem::Delete>("Delete");
-		lua.set_current<&LinkComponentSystem::Valid>("Valid");
-		lua.set_current<&LinkComponentSystem::Clear>("Clear");
-		lua.set_current<&LinkComponentSystem::GetLinkEntity>("GetLinkEntity");
+		lua.set_current<&LinkComponentSystem::GetLink>("GetLink");
+		lua.set_current<&LinkComponentSystem::SetLink>("SetLink");
 	}
 
-	bool LinkComponentSystem::Create(Entity entity, Entity linkEntity) {
-		return subSystem.insert(entity, LinkComponent(linkEntity));
+	bool LinkComponentSystem::Create(Entity entity, Entity n) {
+		return subSystem.insert(entity, LinkComponent(n));
 	}
 
-	Result<void> LinkComponentSystem::Delete(Entity entity) {
-		if (subSystem.remove(entity)) {
-			return {};
-		} else {
-			return ResultError("Invalid entity!");
-		}
-	}
-
-	void LinkComponentSystem::Clear() {
-		subSystem.clear();
-	}
-
-	bool LinkComponentSystem::Valid(Entity entity) noexcept {
-		return subSystem.valid(entity);
-	}
-
-	Result<Entity> LinkComponentSystem::GetLinkEntity(LuaState lua, Entity entity) {
+	Result<Entity> LinkComponentSystem::GetLink(LuaState lua, Entity entity) {
 		Ref ref;
 		if (subSystem.filter<LinkComponent>(entity, [&lua, &ref](LinkComponent& node) noexcept {
-			ref = lua.make_value(node.GetLinkEntity());
+			ref = lua.make_value(node.GetLink());
 		})) {
 			return ref;
 		} else {
@@ -50,9 +26,9 @@ namespace coluster {
 		}
 	}
 
-	Result<void> LinkComponentSystem::SetLinkEntity(LuaState lua, Entity entity, Entity linkEntity) {
+	Result<void> LinkComponentSystem::SetLink(LuaState lua, Entity entity, Entity linkEntity) {
 		if (subSystem.filter<LinkComponent>(entity, [&lua, linkEntity](LinkComponent& node) noexcept {
-			node.SetLinkEntity(linkEntity);
+			node.SetLink(linkEntity);
 		})) {
 			return {};
 		} else {

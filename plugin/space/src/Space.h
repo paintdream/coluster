@@ -27,14 +27,53 @@ namespace coluster {
 		Ref TypeScriptComponentSystem(LuaState lua);
 		Ref TypeLinkComponentSystem(LuaState lua);
 
-		Entity CreateEntity();
-		void DeleteEntity(Entity entity);
-		void ClearEntities();
+		Entity Create();
+		void Delete(Entity entity);
+		void Clear();
 
 	protected:
 		AsyncWorker& asyncWorker;
 		EntityAllocator<Entity> entityAllocator;
 		Systems<Entity> theSystems;
+	};
+	
+	template <typename Component>
+	class ComponentSystem : public Object {
+	public:
+		using BaseClass = ComponentSystem;
+		ComponentSystem(Space& s) noexcept : space(s) {
+			space.GetSystems().attach(subSystem);
+		}
+
+		~ComponentSystem() override {
+			space.GetSystems().detach(subSystem);
+		}
+
+		static void lua_registar(LuaState lua) {
+			lua.set_current<&ComponentSystem::Delete>("Delete");
+			lua.set_current<&ComponentSystem::Valid>("Valid");
+			lua.set_current<&ComponentSystem::Clear>("Clear");
+		}
+
+		bool Valid(Entity entity) noexcept {
+			return subSystem.valid(entity);
+		}
+
+		Result<void> Delete(Entity entity) {
+			if (subSystem.remove(entity)) {
+				return {};
+			} else {
+				return ResultError("Invalid entity!");
+			}
+		}
+
+		void Clear() {
+			subSystem.clear();
+		}
+
+	protected:
+		Space& space;
+		System<Entity, Component> subSystem;
 	};
 }
 

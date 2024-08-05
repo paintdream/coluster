@@ -10,11 +10,12 @@ namespace coluster {
 	class LinkComponent {
 	public:
 		LinkComponent(Entity n) noexcept : linkEntity(n) {}
-		Entity GetLinkEntity() const noexcept {
+
+		Entity GetLink() const noexcept {
 			return linkEntity;
 		}
 
-		void SetLinkEntity(Entity n) noexcept {
+		void SetLink(Entity n) noexcept {
 			linkEntity = n;
 		}
 
@@ -22,25 +23,13 @@ namespace coluster {
 		Entity linkEntity;
 	};
 
-	class LinkComponentSystem : public Object {
+	class LinkComponentSystem : public ComponentSystem<LinkComponent> {
 	public:
 		LinkComponentSystem(Space& space);
-		~LinkComponentSystem() noexcept;
-	
-		void lua_initialize(LuaState lua, int index);
-		void lua_finalize(LuaState lua, int index);
 		static void lua_registar(LuaState lua);
 
-		bool Create(Entity entity, Entity linkEntity);
-		bool Valid(Entity entity) noexcept;
-		Result<void> Delete(Entity entity);
-		void Clear();
-
-		Result<Entity> GetLinkEntity(LuaState lua, Entity entity);
-		Result<void> SetLinkEntity(LuaState lua, Entity entity, Entity linkEntity);
-
-	protected:
-		Space& space;
-		System<Entity, LinkComponent> subSystem;
+		bool Create(Entity entity, Entity n);
+		Result<Entity> GetLink(LuaState lua, Entity entity);
+		Result<void> SetLink(LuaState lua, Entity entity, Entity linkEntity);
 	};
 }

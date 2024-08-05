@@ -32,24 +32,13 @@ namespace coluster {
 		Ref ref;
 	};
 
-	class ScriptComponentSystem : public Object {
+	class ScriptComponentSystem : public ComponentSystem<ScriptComponent> {
 	public:
 		ScriptComponentSystem(Space& space);
-		~ScriptComponentSystem() noexcept;
-	
-		void lua_initialize(LuaState lua, int index);
-		void lua_finalize(LuaState lua, int index);
 		static void lua_registar(LuaState lua);
 
 		bool Create(Entity entity, Ref&& ref);
-		bool Valid(Entity entity) noexcept;
-		Result<void> Delete(Entity entity);
-		void Clear();
 		Result<Ref> GetObject(LuaState lua, Entity entity);
 		Result<void> SetObject(LuaState lua, Entity entity, Ref&& ref);
-
-	protected:
-		Space& space;
-		System<Entity, ScriptComponent> subSystem;
 	};
 }

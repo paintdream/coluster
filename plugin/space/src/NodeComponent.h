@@ -45,28 +45,16 @@ namespace coluster {
 		}
 	};
 
-	class NodeComponentSystem : public Object {
+	class NodeComponentSystem : public ComponentSystem<NodeComponent> {
 	public:
 		NodeComponentSystem(Space& space);
-		~NodeComponentSystem() noexcept;
 	
-		void lua_initialize(LuaState lua, int index);
-		void lua_finalize(LuaState lua, int index);
 		static void lua_registar(LuaState lua);
-
 		bool Create(Entity entity);
-		void Clear();
-
-		bool Valid(Entity entity) noexcept;
-		Result<void> Delete(Entity entity);
 		Result<void> Move(Entity entity, const std::array<float, 6>& boundingNodeBox);
 		Result<std::vector<Entity>> Query(Entity entity, const std::array<float, 6>& boundingNodeBox, const std::vector<float>& convexCuller);
 		Result<void> Attach(Entity parent, Entity child);
 		Result<void> Detach(Entity entity);
 		Result<Entity> Optimize(Entity entity);
-
-	protected:
-		Space& space;
-		System<Entity, NodeComponent> subSystem;
 	};
 }

@@ -34,21 +34,12 @@ namespace coluster {
 		return *this;
 	}
 
-	NodeComponentSystem::NodeComponentSystem(Space& s) : space(s) {
-		space.GetSystems().attach(subSystem);
-	}
+	NodeComponentSystem::NodeComponentSystem(Space& s) : BaseClass(s) {}
 
-	NodeComponentSystem::~NodeComponentSystem() noexcept {
-		space.GetSystems().detach(subSystem);
-	}
-
-	void NodeComponentSystem::lua_initialize(LuaState lua, int index) {}
-	void NodeComponentSystem::lua_finalize(LuaState lua, int index) {}
 	void NodeComponentSystem::lua_registar(LuaState lua) {
+		BaseClass::lua_registar(lua);
+
 		lua.set_current<&NodeComponentSystem::Create>("Create");
-		lua.set_current<&NodeComponentSystem::Delete>("Delete");
-		lua.set_current<&NodeComponentSystem::Valid>("Valid");
-		lua.set_current<&NodeComponentSystem::Clear>("Clear");
 		lua.set_current<&NodeComponentSystem::Move>("Move");
 		lua.set_current<&NodeComponentSystem::Query>("Query");
 		lua.set_current<&NodeComponentSystem::Attach>("Attach");
@@ -58,22 +49,6 @@ namespace coluster {
 
 	bool NodeComponentSystem::Create(Entity entity) {
 		return subSystem.insert(entity, NodeComponent(entity));
-	}
-
-	bool NodeComponentSystem::Valid(Entity entity) noexcept {
-		return subSystem.valid(entity);
-	}
-
-	Result<void> NodeComponentSystem::Delete(Entity entity) {
-		if (subSystem.remove(entity)) {
-			return {};
-		} else {
-			return ResultError("Invalid entity!");
-		}
-	}
-
-	void NodeComponentSystem::Clear() {
-		subSystem.clear();
 	}
 
 	Result<void> NodeComponentSystem::Move(Entity entity, const std::array<float, 6>& boundingNodeBox) {
@@ -122,7 +97,7 @@ namespace coluster {
 					return ResultError("Invalid child entity!");
 				}
 			} else {
-				return ResultError("Invalid parent entity!");
+				return ResultError("Parent entity is not root!");
 			}
 		} else {
 			return ResultError("Invalid parent entity!");

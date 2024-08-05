@@ -18,22 +18,10 @@ namespace coluster {
 		Matrix4x4 matrix;
 	};
 
-	class TransformComponentSystem : public Object {
+	class TransformComponentSystem : public ComponentSystem<TransformComponent> {
 	public:
 		TransformComponentSystem(Space& space);
-		~TransformComponentSystem() noexcept;
-	
-		void lua_initialize(LuaState lua, int index);
-		void lua_finalize(LuaState lua, int index);
 		static void lua_registar(LuaState lua);
-
 		bool Create(Entity entity, const std::array<float, 16>& data);
-		bool Valid(Entity entity) noexcept;
-		Result<void> Delete(Entity entity);
-		void Clear();
-
-	protected:
-		Space& space;
-		System<Entity, TransformComponent> subSystem;
 	};
 }
